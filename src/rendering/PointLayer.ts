@@ -48,6 +48,15 @@ export class PointLayer {
     point.text.y = point.y - labelOffset;
   }
 
+  updatePoint(label: string, x: number, y: number) {
+    const point = this.points.get(label);
+    if (!point) return;
+    point.x = x;
+    point.y = y;
+    point.transform.setPosition(x, y);
+    this.updatePointDisplay(point);
+  }
+
   updateAllVisuals() {
     for (const point of this.points.values()) {
       this.updatePointVisuals(point);

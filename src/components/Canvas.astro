@@ -6,15 +6,17 @@
 
 <script>
   import { CanvasRenderer } from '../rendering/CanvasRenderer';
+  import { GeometryEngine } from '../application/GeometryEngine';
   
   // Initialize canvas
   const container = document.getElementById('canvas-container');
   if (container) {
-    const canvas = new CanvasRenderer(container);
-    await canvas.init();
-    
+    const renderer = new CanvasRenderer(container);
+    await renderer.init();
+    const engine = new GeometryEngine(renderer);
+
     // Expose to window for CLI to access
-    (window as any).canvasManager = canvas;
+    (window as any).euclidus = { engine };
   }
 </script>
 

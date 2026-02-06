@@ -27,6 +27,8 @@
 </div>
 
 <script>
+  import { parseCommand } from '../application/CommandParser';
+  import type { GeometryEngine } from '../application/GeometryEngine';
   const input = document.getElementById('cli-input') as HTMLInputElement;
   const output = document.getElementById('cli-output') as HTMLDivElement;
   
@@ -48,45 +50,31 @@
     }
   }
   
-  function parseCommand(command: string) {
-    const trimmed = command.trim().toLowerCase();
-    
-    // Parse "new point X y,z" format
-    const pointMatch = trimmed.match(/new\s+point\s+([a-z])\s+([-\d.]+)[,\s]+([-\d.]+)/i);
-    if (pointMatch) {
-      const label = pointMatch[1].toUpperCase();
-      const x = parseFloat(pointMatch[2]);
-      const y = parseFloat(pointMatch[3]);
-      
-      if (!isNaN(x) && !isNaN(y)) {
-        return { type: 'point', label, x, y };
-      }
-    }
-    
-    return null;
-  }
-  
   function executeCommand(command: string) {
     if (!command.trim()) return;
     
     addLog(`> ${command}`);
     const parsed = parseCommand(command);
-    
-    if (!parsed) {
-      addLog('Invalid command. Use: new point A 0,0', 'error');
+
+    if (parsed.type === 'invalid') {
+      addLog(`Invalid command. ${parsed.reason}`, 'error');
       return;
     }
-    
-    const canvasManager = (window as any).canvasManager;
-    if (!canvasManager) {
-      addLog('Canvas not initialized', 'error');
+
+    const app = (window as any).euclidus as { engine?: GeometryEngine } | undefined;
+    if (!app?.engine) {
+      addLog('Engine not initialized', 'error');
       return;
     }
-    
+
     try {
-      if (parsed.type === 'point') {
-        canvasManager.addPoint(parsed.label, parsed.x, parsed.y);
-        addLog(`Created point ${parsed.label} at (${parsed.x}, ${parsed.y})`, 'success');
+      if (parsed.type === 'addPoint') {
+        app.engine.addPoint(parsed.name, parsed.x, parsed.y);
+        addLog(`Created point ${parsed.name} at (${parsed.x}, ${parsed.y})`, 'success');
+      }
+      if (parsed.type === 'addLine') {
+        app.engine.addLine(parsed.name, parsed.start, parsed.end);
+        addLog(`Created line ${parsed.name} between ${parsed.start} and ${parsed.end}`, 'success');
       }
     } catch (error) {
       addLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');

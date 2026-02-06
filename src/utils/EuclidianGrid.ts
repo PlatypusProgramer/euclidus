@@ -31,13 +31,19 @@ export class EuclidianGrid {
     const minGridY = Math.floor(bounds.minY);
     const maxGridY = Math.ceil(bounds.maxY);
     
+    const scale = this.camera.getScale();
+
     // Vertical lines (parallel to Y-axis)
     for (let x = minGridX; x <= maxGridX; x++) {
       const isMajor = x === 0;
       const isEmphasis = x !== 0 && x % 5 === 0;
       const style = this.getLineStyle(isMajor, isEmphasis);
       
-      this.graphics.setStrokeStyle({ width: style.width, color: style.color, alpha: style.alpha });
+      this.graphics.setStrokeStyle({
+        width: style.width / scale,
+        color: style.color,
+        alpha: style.alpha,
+      });
       
       this.graphics.moveTo(x, bounds.minY);
       this.graphics.lineTo(x, bounds.maxY);
@@ -50,7 +56,11 @@ export class EuclidianGrid {
       const isEmphasis = y !== 0 && y % 5 === 0;
       const style = this.getLineStyle(isMajor, isEmphasis);
       
-      this.graphics.setStrokeStyle({ width: style.width, color: style.color, alpha: style.alpha });
+      this.graphics.setStrokeStyle({
+        width: style.width / scale,
+        color: style.color,
+        alpha: style.alpha,
+      });
       
       this.graphics.moveTo(bounds.minX, y);
       this.graphics.lineTo(bounds.maxX, y);
