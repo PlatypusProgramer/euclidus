@@ -1,0 +1,111 @@
+---
+// CLI Input component for Euclidus
+---
+
+<div id="cli-container" style="background-color: #0d0d0d; border-top: 1px solid #333; padding: 10px; font-family: monospace;">
+  <div id="cli-output" style="color: #888; font-size: 12px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;">
+    <div style="color: #ffa500;">Euclidus CLI Ready. Type commands (e.g., "new point A 0,0")</div>
+  </div>
+  <div style="display: flex; gap: 8px;">
+    <span style="color: #ffa500; line-height: 1.5;"></span>
+    <input 
+      id="cli-input" 
+      type="text" 
+      placeholder="new point A 0,0"
+      style="
+        flex: 1;
+        background-color: #1a1a1a;
+        border: none;
+        color: #fff;
+        font-family: monospace;
+        font-size: 14px;
+        padding: 8px;
+        outline: none;
+      "
+    />
+  </div>
+</div>
+
+<script>
+  const input = document.getElementById('cli-input') as HTMLInputElement;
+  const output = document.getElementById('cli-output') as HTMLDivElement;
+  
+  function addLog(message: string, type: 'info' | 'error' | 'success' = 'info') {
+    const div = document.createElement('div');
+    let color = '#888';
+    if (type === 'error') color = '#ff4444';
+    if (type === 'success') color = '#44ff44';
+    if (type === 'info') color = '#888';
+    
+    div.style.color = color;
+    div.textContent = message;
+    output.appendChild(div);
+    output.scrollTop = output.scrollHeight;
+    
+    // Keep last 10 messages
+    while (output.children.length > 10) {
+      output.removeChild(output.children[0]);
+    }
+  }
+  
+  function parseCommand(command: string) {
+    const trimmed = command.trim().toLowerCase();
+    
+    // Parse "new point X y,z" format
+    const pointMatch = trimmed.match(/new\s+point\s+([a-z])\s+([-\d.]+)[,\s]+([-\d.]+)/i);
+    if (pointMatch) {
+      const label = pointMatch[1].toUpperCase();
+      const x = parseFloat(pointMatch[2]);
+      const y = parseFloat(pointMatch[3]);
+      
+      if (!isNaN(x) && !isNaN(y)) {
+        return { type: 'point', label, x, y };
+      }
+    }
+    
+    return null;
+  }
+  
+  function executeCommand(command: string) {
+    if (!command.trim()) return;
+    
+    addLog(`> ${command}`);
+    const parsed = parseCommand(command);
+    
+    if (!parsed) {
+      addLog('Invalid command. Use: new point A 0,0', 'error');
+      return;
+    }
+    
+    const canvasManager = (window as any).canvasManager;
+    if (!canvasManager) {
+      addLog('Canvas not initialized', 'error');
+      return;
+    }
+    
+    try {
+      if (parsed.type === 'point') {
+        canvasManager.addPoint(parsed.label, parsed.x, parsed.y);
+        addLog(`Created point ${parsed.label} at (${parsed.x}, ${parsed.y})`, 'success');
+      }
+    } catch (error) {
+      addLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  }
+  
+  input.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      executeCommand(input.value);
+      input.value = '';
+    }
+  });
+  
+  // Expose logging for canvas messages
+  (window as any).addLog = addLog;
+</script>
+
+<style>
+  #cli-output {
+    font-size: 12px;
+  }
+</style>
