@@ -1,10 +1,10 @@
-# Astro Starter Kit: Minimal
+# Euclidus Geometry Explorer
 
 ```sh
-npm create astro@latest -- --template minimal
+This project follows the architecture described in `Euclidus.md`. The rendering layer uses a model-space/view-space separation with a camera that applies pan/zoom/flip transforms to a dedicated Pixi world container. Grid and entities are authored in world units and inherit the camera transform.
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+For the full system plan, components, and development phases, see `Euclidus.md`.
 
 ## 🚀 Project Structure
 

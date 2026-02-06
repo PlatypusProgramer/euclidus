@@ -1,7 +1,6 @@
 ---
 import Canvas from '../components/Canvas.astro';
 import CLI from '../components/CLI.astro';
-import Controls from '../components/Controls.astro';
 ---
 
 <!DOCTYPE html>
@@ -50,10 +49,7 @@ import Controls from '../components/Controls.astro';
 		</style>
 	</head>
 	<body>
-		<div id="app">
-			<div id="controls-wrapper">
-				<Controls />
-			</div>
+		<div id="app" style="padding: 60px; background-color: #1a1a1a; color: #f0f0f0;">
 			<div id="canvas-wrapper">
 				<Canvas />
 			</div>

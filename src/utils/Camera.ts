@@ -1,25 +1,42 @@
 // Camera - World to Screen transformation with pan and zoom
 import { multiply, inv } from 'mathjs';
+import type { Container } from 'pixi.js';
 
 export class Camera {
   private panX: number = 0; // World units
   private panY: number = 0; // World units
   private zoom: number = 1; // Scaling factor (zoom level)
   private gridSize: number = 25; // Pixels per world unit
+  private canvasWidth: number = 800; // Default canvas width
+  private canvasHeight: number = 600; // Default canvas height
 
   private viewMatrix: any = null;
   private inverseViewMatrix: any = null;
   private dirty: boolean = true;
-
   constructor(gridSize: number = 25) {
     this.gridSize = gridSize;
     this.updateViewMatrix();
+  }
+
+  setCanvasSize(width: number, height: number): void {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.dirty = true;
+    this.inverseViewMatrix = null;
   }
 
   setPan(x: number, y: number): void {
     this.panX = x;
     this.panY = y;
     this.dirty = true;
+    this.inverseViewMatrix = null;
+  }
+
+  panBy(dx: number, dy: number): void {
+    this.panX += dx;
+    this.panY += dy;
+    this.dirty = true;
+    this.inverseViewMatrix = null;
   }
 
   getPan(): { x: number; y: number } {
@@ -29,6 +46,7 @@ export class Camera {
   setGridSize(gridSize: number): void {
     this.gridSize = gridSize;
     this.dirty = true;
+    this.inverseViewMatrix = null;
   }
 
   getGridSize(): number {
@@ -38,18 +56,30 @@ export class Camera {
   setZoom(zoom: number): void {
     this.zoom = Math.max(0.1, zoom); // Prevent zero/negative zoom
     this.dirty = true;
+    this.inverseViewMatrix = null;
   }
 
   getZoom(): number {
     return this.zoom;
   }
 
-  private updateViewMatrix(): void {
-    // View matrix: translate by -pan, then scale by zoom*gridSize
-    const scale = this.gridSize * this.zoom;
+  getScale(): number {
+    return this.gridSize * this.zoom;
+  }
 
-    // Translation matrix (move pan point to origin)
-    const translation = [
+  private updateViewMatrix(): void {
+    // View matrix: translate to canvas center, translate by -pan, then scale by zoom*gridSize
+    const scale = this.getScale();
+
+    // First, center the canvas: translate by canvas center
+    const centerTranslation = [
+      [1, 0, this.canvasWidth / 2],
+      [0, 1, this.canvasHeight / 2],
+      [0, 0, 1],
+    ];
+
+    // Then, translate by -pan and flip Y
+    const panTranslation = [
       [1, 0, -this.panX * scale],
       [0, -1, this.panY * scale], // Negative to flip Y axis
       [0, 0, 1],
@@ -62,11 +92,21 @@ export class Camera {
       [0, 0, 1],
     ];
 
-    // Multiply: translation * scaling
-    this.viewMatrix = multiply(translation, scaling);
+    // Multiply: centerTranslation * panTranslation * scaling
+    const temp = multiply(panTranslation, scaling);
+    this.viewMatrix = multiply(centerTranslation, temp);
     this.inverseViewMatrix = null; // Will be calculated on demand
     this.dirty = false;
   }
+
+  applyTo(container: Container): void {
+    const scale = this.getScale();
+    const centerX = this.canvasWidth / 2;
+    const centerY = this.canvasHeight / 2;
+    container.scale.set(scale, -scale);
+    container.position.set(centerX - this.panX * scale, centerY + this.panY * scale);
+  }
+
 
   getViewMatrix(): any {
     if (this.dirty) {
@@ -76,8 +116,11 @@ export class Camera {
   }
 
   private getInverseViewMatrix(): any {
+    if (this.dirty) {
+      this.updateViewMatrix();
+    }
     if (!this.inverseViewMatrix) {
-      this.inverseViewMatrix = inv(this.getViewMatrix());
+      this.inverseViewMatrix = inv(this.viewMatrix);
     }
     return this.inverseViewMatrix;
   }
