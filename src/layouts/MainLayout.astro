@@ -1,0 +1,65 @@
+---
+import Canvas from '../components/Canvas.astro';
+import CLI from '../components/CLI.astro';
+import Controls from '../components/Controls.astro';
+---
+
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<link rel="icon" href="/favicon.ico" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<title>Euclidus</title>
+		<style>
+			* {
+				margin: 0;
+				padding: 0;
+				box-sizing: border-box;
+			}
+
+			html, body {
+				height: 100%;
+				width: 100%;
+				overflow: hidden;
+			}
+
+			#app {
+				display: flex;
+				flex-direction: column;
+				height: 100vh;
+				width: 100%;
+			}
+
+			#controls-wrapper {
+				height: auto;
+				flex-shrink: 0;
+			}
+
+			#canvas-wrapper {
+				flex: 1;
+				overflow: hidden;
+			}
+
+			#cli-wrapper {
+				height: 150px;
+				flex-shrink: 0;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="app">
+			<div id="controls-wrapper">
+				<Controls />
+			</div>
+			<div id="canvas-wrapper">
+				<Canvas />
+			</div>
+			<div id="cli-wrapper">
+				<CLI />
+			</div>
+		</div>
+	</body>
+</html>

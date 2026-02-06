@@ -2,15 +2,19 @@
 // Canvas component for Euclidus geometry visualization
 ---
 
-<div id="canvas-container" style="width: 100%; height: calc(100vh - 100px); background-color: #1a1a1a;"></div>
+<div id="canvas-container" style="width: 100%; height: 100%; background-color: #1a1a1a;"></div>
 
 <script>
   import * as PIXI from 'pixi.js';
+  import { Grid } from '../utils/Grid';
+  import { Camera } from '../utils/Camera';
+  import { Transform } from '../utils/Transform';
   
   interface Point {
     label: string;
     x: number;
     y: number;
+    transform: Transform;
     graphics?: PIXI.Graphics;
     text?: PIXI.Text;
   }
@@ -19,9 +23,13 @@
     app!: PIXI.Application;
     points: Map<string, Point> = new Map();
     container: HTMLElement;
+    camera: Camera;
+    grid: Grid;
     
     constructor(container: HTMLElement) {
       this.container = container;
+      this.camera = new Camera(25); // 25 pixels per unit
+      this.grid = new Grid(this.camera);
     }
     
     async init() {
@@ -35,10 +43,12 @@
       
       this.container.appendChild(this.app.canvas as HTMLCanvasElement);
       
-      // Center the stage at canvas center with (0,0) at center
+      // Position stage at canvas center for proper coordinate system
       this.app.stage.position.x = this.app.canvas.width / 2;
       this.app.stage.position.y = this.app.canvas.height / 2;
-      this.app.stage.scale.y = -1; // Flip Y axis so positive Y goes up
+      
+      // Draw grid
+      this.grid.draw(this.app.stage, this.app.canvas);
       
       // Handle window resize
       window.addEventListener('resize', () => this.resize());
@@ -52,6 +62,42 @@
       // Recenter stage
       this.app.stage.position.x = this.app.canvas.width / 2;
       this.app.stage.position.y = this.app.canvas.height / 2;
+      
+      // Redraw grid
+      this.grid.draw(this.app.stage, this.app.canvas);
+    }
+    
+    updateGridSettings(settings: { gridSize?: number; panX?: number; panY?: number }) {
+      if (settings.gridSize !== undefined) this.camera.setGridSize(settings.gridSize);
+      if (settings.panX !== undefined || settings.panY !== undefined) {
+        const pan = this.camera.getPan();
+        this.camera.setPan(
+          settings.panX !== undefined ? settings.panX : pan.x,
+          settings.panY !== undefined ? settings.panY : pan.y
+        );
+      }
+      
+      // Redraw grid
+      this.grid.draw(this.app.stage, this.app.canvas);
+      
+      // Update all existing points
+      for (const point of this.points.values()) {
+        this.updatePointDisplay(point);
+      }
+    }
+    
+    updatePointDisplay(point: Point) {
+      const screenPos = this.camera.worldToScreen(point.x, point.y);
+      
+      if (point.graphics) {
+        point.graphics.position.x = screenPos.x;
+        point.graphics.position.y = screenPos.y;
+      }
+      
+      if (point.text) {
+        point.text.x = screenPos.x + 12;
+        point.text.y = screenPos.y - 12;
+      }
     }
     
     addPoint(label: string, x: number, y: number) {
@@ -60,13 +106,19 @@
         this.removePoint(label);
       }
       
-      // Create point object
-      const point: Point = { label, x, y };
+      // Create point object with transform (identity for now)
+      const transform = new Transform(x, y);
+      const point: Point = { label, x, y, transform };
+      
+      // Calculate screen position via camera
+      const screenPos = this.camera.worldToScreen(x, y);
       
       // Draw orange dot
       const graphics = new PIXI.Graphics();
-      graphics.circle(x, y, 6);
+      graphics.circle(0, 0, 6);
       graphics.fill({ color: 0xff8c00 }); // Nice orange
+      graphics.position.x = screenPos.x;
+      graphics.position.y = screenPos.y;
       this.app.stage.addChild(graphics);
       point.graphics = graphics;
       
@@ -79,9 +131,8 @@
           fontWeight: 'bold',
         },
       });
-      text.x = x + 12;
-      text.y = y - 12;
-      text.scale.y = -1; // Flip text back to normal orientation
+      text.x = screenPos.x + 12;
+      text.y = screenPos.y - 12;
       this.app.stage.addChild(text);
       point.text = text;
       

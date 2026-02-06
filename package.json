@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "astro": "^5.17.1",
-    "math.js": "^1.1.46",
+    "mathjs": "^12.4.2",
     "pixi.js": "^8.16.0"
   }
 }

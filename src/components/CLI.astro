@@ -2,11 +2,11 @@
 // CLI Input component for Euclidus
 ---
 
-<div id="cli-container" style="background-color: #0d0d0d; border-top: 1px solid #333; padding: 10px; font-family: monospace;">
-  <div id="cli-output" style="color: #888; font-size: 12px; margin-bottom: 8px; max-height: 60px; overflow-y: auto;">
+<div id="cli-container" style="background-color: #0d0d0d; border-top: 1px solid #333; padding: 10px; font-family: monospace; display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box;">
+  <div id="cli-output" style="color: #888; font-size: 12px; margin-bottom: 8px; overflow-y: auto; flex: 1;">
     <div style="color: #ffa500;">Euclidus CLI Ready. Type commands (e.g., "new point A 0,0")</div>
   </div>
-  <div style="display: flex; gap: 8px;">
+  <div style="display: flex; gap: 8px; flex-shrink: 0;">
     <span style="color: #ffa500; line-height: 1.5;"></span>
     <input 
       id="cli-input" 
