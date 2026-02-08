@@ -7,33 +7,82 @@
 <script>
   import { CanvasRenderer } from '../rendering/CanvasRenderer';
   import { GeometryEngine } from '../application/GeometryEngine';
+  (window as any).__canvasModuleLoaded = true;
+  console.info('Canvas module loaded');
+  const debugEnabled = new URLSearchParams(window.location.search).has('debug');
+  const debugLines: string[] = [];
+  const debug = (line: string) => {
+    debugLines.push(line);
+    console.info(line);
+    const panel = document.getElementById('debug-panel');
+    if (panel) panel.textContent = debugLines.join('\n');
+  };
+  if (debugEnabled && !document.getElementById('debug-panel')) {
+    const panel = document.createElement('pre');
+    panel.id = 'debug-panel';
+    panel.style.position = 'fixed';
+    panel.style.right = '12px';
+    panel.style.top = '12px';
+    panel.style.maxWidth = '40vw';
+    panel.style.maxHeight = '40vh';
+    panel.style.overflow = 'auto';
+    panel.style.background = 'rgba(0,0,0,0.75)';
+    panel.style.color = '#00ff7f';
+    panel.style.padding = '10px';
+    panel.style.fontSize = '11px';
+    panel.style.zIndex = '9999';
+    panel.style.whiteSpace = 'pre-wrap';
+    panel.style.border = '1px solid #0f0';
+    panel.textContent = 'Debug enabled...\n';
+    document.body.appendChild(panel);
+  }
   
   // Initialize canvas
   const container = document.getElementById('canvas-container');
   if (container) {
+    debug(`container found: yes, size=${container.clientWidth}x${container.clientHeight}`);
+    debug(`devicePixelRatio=${window.devicePixelRatio}`);
+    debug(`userAgent=${navigator.userAgent}`);
     // Expose a placeholder early so the CLI can report status.
     (window as any).euclidus = { engine: undefined, error: undefined };
     const renderer = new CanvasRenderer(container);
     try {
+      debug('renderer.init() starting');
       await renderer.init();
+      debug('renderer.init() done');
       const engine = new GeometryEngine(renderer);
+      debug('GeometryEngine created');
       renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
 
       // Expose to window for CLI to access
       (window as any).euclidus = { engine };
+      debug('window.euclidus.engine set');
 
       engine.addPoint('A', 0, 0);
       engine.addPoint('B', 15, 15);
       engine.addLineSegment('AB', 'A', 'B');
+      debug('seed geometry added');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       (window as any).euclidus = { engine: undefined, error: message };
       console.error('Canvas init failed:', error);
+      debug(`Canvas init failed: ${message}`);
       if (typeof (window as any).addLog === 'function') {
         (window as any).addLog(`Canvas init failed: ${message}`, 'error');
       }
     }
+  } else {
+    console.warn('Canvas container not found');
+    debug('container found: no');
   }
+
+  // Post-init check to catch silent failures.
+  setTimeout(() => {
+    const app = (window as any).euclidus as { engine?: GeometryEngine; error?: string } | undefined;
+    debug(`post-check: engine=${app?.engine ? 'yes' : 'no'}, error=${app?.error ?? 'none'}`);
+    const canvas = document.querySelector('#canvas-container canvas');
+    debug(`canvas element present: ${canvas ? 'yes' : 'no'}`);
+  }, 2000);
 </script>
 
 <style>
