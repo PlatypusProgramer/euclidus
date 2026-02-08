@@ -15,6 +15,7 @@ export class PointLayer {
   private points: Map<string, Point> = new Map();
   private layer: PIXI.Container;
   private camera: Camera;
+  private hoveredLabel: string | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
@@ -22,26 +23,37 @@ export class PointLayer {
   }
 
   updatePointDisplay(point: Point) {
+    const scale = this.camera.getScale();
+    const labelOffset = 12 / scale;
+
     if (point.graphics) {
       point.graphics.position.x = point.x;
       point.graphics.position.y = point.y;
     }
 
     if (point.text) {
-      point.text.x = point.x + 12;
-      point.text.y = point.y - 12;
+      point.text.x = point.x + labelOffset;
+      point.text.y = point.y - labelOffset;
     }
   }
 
   updatePointVisuals(point: Point) {
     if (!point.graphics || !point.text) return;
     const scale = this.camera.getScale();
+    const isHovered = this.hoveredLabel === point.label;
     const radius = 6 / scale;
+    const glowRadius = 12 / scale;
     const labelOffset = 12 / scale;
 
     point.graphics.clear();
+    if (isHovered) {
+      point.graphics.circle(0, 0, glowRadius);
+      point.graphics.fill({ color: 0xffd27a, alpha: 0.2 });
+      point.graphics.circle(0, 0, glowRadius * 0.7);
+      point.graphics.fill({ color: 0xffd27a, alpha: 0.35 });
+    }
     point.graphics.circle(0, 0, radius);
-    point.graphics.fill({ color: 0xff8c00 });
+    point.graphics.fill({ color: isHovered ? 0xfff1c7 : 0xff8c00 });
 
     point.text.scale.set(1 / scale, -1 / scale);
     point.text.x = point.x + labelOffset;
@@ -61,6 +73,39 @@ export class PointLayer {
     for (const point of this.points.values()) {
       this.updatePointVisuals(point);
     }
+  }
+
+  setHoveredPoint(label: string | null) {
+    if (this.hoveredLabel === label) return;
+    const previous = this.hoveredLabel;
+    this.hoveredLabel = label;
+    if (previous) {
+      const point = this.points.get(previous);
+      if (point) this.updatePointVisuals(point);
+    }
+    if (label) {
+      const point = this.points.get(label);
+      if (point) this.updatePointVisuals(point);
+    }
+  }
+
+  getPointAt(worldX: number, worldY: number) {
+    const tolerance = 8 / this.camera.getScale();
+    const toleranceSq = tolerance * tolerance;
+    let closest: Point | null = null;
+    let closestDist = Infinity;
+
+    for (const point of this.points.values()) {
+      const dx = worldX - point.x;
+      const dy = worldY - point.y;
+      const dist = dx * dx + dy * dy;
+      if (dist <= toleranceSq && dist < closestDist) {
+        closest = point;
+        closestDist = dist;
+      }
+    }
+
+    return closest;
   }
 
   addPoint(label: string, x: number, y: number) {

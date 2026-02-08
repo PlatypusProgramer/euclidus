@@ -1,0 +1,77 @@
+---
+// Help panel listing available CLI commands
+---
+
+<aside class="help-panel">
+  <div class="help-section">
+    <h2>Help</h2>
+    <div class="help-list">
+      <div>`new point A 0,0`</div>
+      <div>`add point B 2,3`</div>
+      <div>`add lineSegment AB`</div>
+      <div>`add lineSegment A B`</div>
+      <div>`add line L A 1,0`</div>
+    </div>
+  </div>
+  <div class="help-section">
+    <h3>Constraints</h3>
+    <div class="help-list">
+      <div>`lock point A`</div>
+      <div>`unlock point A`</div>
+      <div>`perpendicular line L1 line L2`</div>
+      <div>`perpendicular segment AB segment CD`</div>
+      <div>`perpendicular line L1 segment AB`</div>
+    </div>
+    <div class="help-note">Use these after creating the referenced points/lines/segments.</div>
+  </div>
+</aside>
+
+<style>
+  .help-panel {
+    width: 280px;
+    min-width: 240px;
+    max-width: 340px;
+    padding: 24px;
+    background-color: #141414;
+    border-right: 1px solid #2a2a2a;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  .help-panel h2 {
+    font-size: 16px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #ffa500;
+  }
+
+  .help-panel h3 {
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #ffa500;
+    margin-top: 6px;
+  }
+
+  .help-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .help-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-family: monospace;
+    font-size: 13px;
+    color: #cfcfcf;
+  }
+
+  .help-note {
+    font-size: 11px;
+    color: #8a8a8a;
+    line-height: 1.4;
+  }
+</style>

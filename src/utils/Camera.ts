@@ -142,14 +142,13 @@ export class Camera {
   }
 
   // Get visible world bounds
-  getVisibleBounds(canvasWidth: number, canvasHeight: number): {
-    minX: number;
-    maxX: number;
-    minY: number;
-    maxY: number;
-  } {
+  getVisibleBounds(): { minX: number; maxX: number; minY: number; maxY: number };
+  getVisibleBounds(canvasWidth: number, canvasHeight: number): { minX: number; maxX: number; minY: number; maxY: number };
+  getVisibleBounds(canvasWidth?: number, canvasHeight?: number) {
+    const width = canvasWidth ?? this.canvasWidth;
+    const height = canvasHeight ?? this.canvasHeight;
     const topLeft = this.screenToWorld(0, 0);
-    const bottomRight = this.screenToWorld(canvasWidth, canvasHeight);
+    const bottomRight = this.screenToWorld(width, height);
 
     return {
       minX: Math.min(topLeft.x, bottomRight.x),

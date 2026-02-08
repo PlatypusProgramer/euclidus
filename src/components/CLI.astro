@@ -72,9 +72,30 @@
         app.engine.addPoint(parsed.name, parsed.x, parsed.y);
         addLog(`Created point ${parsed.name} at (${parsed.x}, ${parsed.y})`, 'success');
       }
+      if (parsed.type === 'addLineSegment') {
+        app.engine.addLineSegment(parsed.name, parsed.start, parsed.end);
+        addLog(`Created line segment ${parsed.name} between ${parsed.start} and ${parsed.end}`, 'success');
+      }
       if (parsed.type === 'addLine') {
-        app.engine.addLine(parsed.name, parsed.start, parsed.end);
-        addLog(`Created line ${parsed.name} between ${parsed.start} and ${parsed.end}`, 'success');
+        app.engine.addLine(parsed.name, parsed.root, parsed.directionX, parsed.directionY);
+        addLog(
+          `Created line ${parsed.name} through ${parsed.root} with direction (${parsed.directionX}, ${parsed.directionY})`,
+          'success'
+        );
+      }
+      if (parsed.type === 'lockPoint') {
+        app.engine.lockPoint(parsed.name);
+        addLog(`Locked point ${parsed.name}`, 'success');
+      }
+      if (parsed.type === 'unlockPoint') {
+        app.engine.unlockPoint(parsed.name);
+        addLog(`Unlocked point ${parsed.name}`, 'success');
+      }
+      if (parsed.type === 'addPerpendicular') {
+        app.engine.addPerpendicularConstraint(parsed.a, parsed.b);
+        const aLabel = `${parsed.a.type === 'line' ? 'line' : 'segment'} ${parsed.a.name}`;
+        const bLabel = `${parsed.b.type === 'line' ? 'line' : 'segment'} ${parsed.b.name}`;
+        addLog(`Added perpendicular constraint between ${aLabel} and ${bLabel}`, 'success');
       }
     } catch (error) {
       addLog(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');

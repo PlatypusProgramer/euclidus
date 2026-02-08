@@ -1,6 +1,7 @@
 ---
 import Canvas from '../components/Canvas.astro';
 import CLI from '../components/CLI.astro';
+import HelpPanel from '../components/HelpPanel.astro';
 ---
 
 <!DOCTYPE html>
@@ -27,9 +28,17 @@ import CLI from '../components/CLI.astro';
 
 			#app {
 				display: flex;
-				flex-direction: column;
 				height: 100vh;
 				width: 100%;
+				background-color: #1a1a1a;
+				color: #f0f0f0;
+			}
+
+			#main-pane {
+				flex: 1;
+				display: flex;
+				flex-direction: column;
+				height: 100%;
 			}
 
 			#controls-wrapper {
@@ -49,12 +58,15 @@ import CLI from '../components/CLI.astro';
 		</style>
 	</head>
 	<body>
-		<div id="app" style="padding: 60px; background-color: #1a1a1a; color: #f0f0f0;">
-			<div id="canvas-wrapper">
-				<Canvas />
-			</div>
-			<div id="cli-wrapper">
-				<CLI />
+		<div id="app">
+			<HelpPanel />
+			<div id="main-pane">
+				<div id="canvas-wrapper">
+					<Canvas />
+				</div>
+				<div id="cli-wrapper">
+					<CLI />
+				</div>
 			</div>
 		</div>
 	</body>

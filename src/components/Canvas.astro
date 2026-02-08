@@ -14,9 +14,14 @@
     const renderer = new CanvasRenderer(container);
     await renderer.init();
     const engine = new GeometryEngine(renderer);
+    renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
 
     // Expose to window for CLI to access
     (window as any).euclidus = { engine };
+
+    engine.addPoint('A', 0, 0);
+    engine.addPoint('B', 15, 15);
+    engine.addLineSegment('AB', 'A', 'B');
   }
 </script>
 
