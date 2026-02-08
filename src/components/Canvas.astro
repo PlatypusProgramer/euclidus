@@ -11,17 +11,28 @@
   // Initialize canvas
   const container = document.getElementById('canvas-container');
   if (container) {
+    // Expose a placeholder early so the CLI can report status.
+    (window as any).euclidus = { engine: undefined, error: undefined };
     const renderer = new CanvasRenderer(container);
-    await renderer.init();
-    const engine = new GeometryEngine(renderer);
-    renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
+    try {
+      await renderer.init();
+      const engine = new GeometryEngine(renderer);
+      renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
 
-    // Expose to window for CLI to access
-    (window as any).euclidus = { engine };
+      // Expose to window for CLI to access
+      (window as any).euclidus = { engine };
 
-    engine.addPoint('A', 0, 0);
-    engine.addPoint('B', 15, 15);
-    engine.addLineSegment('AB', 'A', 'B');
+      engine.addPoint('A', 0, 0);
+      engine.addPoint('B', 15, 15);
+      engine.addLineSegment('AB', 'A', 'B');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      (window as any).euclidus = { engine: undefined, error: message };
+      console.error('Canvas init failed:', error);
+      if (typeof (window as any).addLog === 'function') {
+        (window as any).addLog(`Canvas init failed: ${message}`, 'error');
+      }
+    }
   }
 </script>
 
