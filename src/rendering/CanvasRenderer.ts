@@ -31,6 +31,9 @@ export class CanvasRenderer implements RendererPort {
       height: this.container.clientHeight,
       backgroundColor: 0x1a1a1a,
       antialias: true,
+      // Prefer WebGL to avoid WebGPU init hangs in some hosted environments.
+      preference: 'webgl',
+      powerPreference: 'high-performance',
     });
 
     this.container.appendChild(this.app.canvas as HTMLCanvasElement);
