@@ -14,33 +14,52 @@
     // Expose a placeholder so the CLI can report status while we initialize.
     (window as any).euclidus = { engine: undefined };
     const renderer = new CanvasRenderer(container);
-    // Ensure layout has settled and container has a size before init.
+    const nextFrame = () => new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
     const waitForSize = async () => {
       const start = performance.now();
       while ((container.clientWidth === 0 || container.clientHeight === 0) && performance.now() - start < 3000) {
-        await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+        await nextFrame();
       }
     };
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
-    await waitForSize();
-    const initPromise = renderer.init();
-    const warnTimer = window.setTimeout(() => {
-      console.warn('Renderer init is taking longer than expected...');
-      if (typeof (window as any).addLog === 'function') {
-        (window as any).addLog('Renderer is still initializing, please wait...', 'info');
-      }
-    }, 8000);
-    await initPromise;
-    window.clearTimeout(warnTimer);
-    const engine = new GeometryEngine(renderer);
-    renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
 
-    // Expose to window for CLI to access
-    (window as any).euclidus = { engine };
+    const startInit = async () => {
+      // Let layout settle before initializing Pixi.
+      await nextFrame();
+      await nextFrame();
+      container.getBoundingClientRect();
+      await waitForSize();
 
-    engine.addPoint('A', 0, 0);
-    engine.addPoint('B', 15, 15);
-    engine.addLineSegment('AB', 'A', 'B');
+      const warnTimer = window.setTimeout(() => {
+        console.warn('Renderer init is taking longer than expected...');
+        if (typeof (window as any).addLog === 'function') {
+          (window as any).addLog('Renderer is still initializing, please wait...', 'info');
+        }
+      }, 8000);
+
+      renderer.init()
+        .then(() => {
+          window.clearTimeout(warnTimer);
+          const engine = new GeometryEngine(renderer);
+          renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
+
+          // Expose to window for CLI to access
+          (window as any).euclidus = { engine };
+
+          engine.addPoint('A', 0, 0);
+          engine.addPoint('B', 15, 15);
+          engine.addLineSegment('AB', 'A', 'B');
+        })
+        .catch((error) => {
+          window.clearTimeout(warnTimer);
+          console.error('Canvas init failed:', error);
+          if (typeof (window as any).addLog === 'function') {
+            const message = error instanceof Error ? error.message : 'Unknown error';
+            (window as any).addLog(`Canvas init failed: ${message}`, 'error');
+          }
+        });
+    };
+
+    startInit();
   }
 </script>
 
