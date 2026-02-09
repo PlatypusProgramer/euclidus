@@ -63,10 +63,7 @@
 
     const app = (window as any).euclidus as { engine?: GeometryEngine } | undefined;
     if (!app?.engine) {
-      const canvasLoaded = (window as any).__canvasModuleLoaded ? 'yes' : 'no';
-      const canvasContainer = document.getElementById('canvas-container') ? 'yes' : 'no';
-      const reason = app?.error ? ` (${app.error})` : '';
-      addLog(`Engine not initialized${reason} [canvasModuleLoaded=${canvasLoaded}, canvasContainer=${canvasContainer}]`, 'error');
+      addLog('Engine not initialized', 'error');
       return;
     }
 
