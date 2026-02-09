@@ -46,9 +46,20 @@
     // Expose a placeholder early so the CLI can report status.
     (window as any).euclidus = { engine: undefined, error: undefined };
     const renderer = new CanvasRenderer(container);
+    const withTimeout = async <T,>(promise: Promise<T>, ms: number, label: string) => {
+      let timer: number | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = window.setTimeout(() => reject(new Error(`${label} after ${ms}ms`)), ms);
+      });
+      try {
+        return await Promise.race([promise, timeout]);
+      } finally {
+        if (timer) window.clearTimeout(timer);
+      }
+    };
     try {
       debug('renderer.init() starting');
-      await renderer.init();
+      await withTimeout(renderer.init(), 8000, 'renderer.init timeout');
       debug('renderer.init() done');
       const engine = new GeometryEngine(renderer);
       debug('GeometryEngine created');
