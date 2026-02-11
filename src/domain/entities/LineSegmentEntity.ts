@@ -1,5 +1,4 @@
 import type { Matrix } from 'mathjs';
-import type { CanvasRenderer } from '../../rendering/CanvasRenderer';
 import type { GeometryEntity } from './GeometryEntity';
 import type { PointEntity } from './PointEntity';
 import { createGuid } from '../../utils/guid';
@@ -20,10 +19,6 @@ export class LineSegmentEntity implements GeometryEntity {
   setPoints(start: PointEntity, end: PointEntity) {
     this.start = start;
     this.end = end;
-  }
-
-  draw(renderer: CanvasRenderer) {
-    renderer.addLineSegment(this);
   }
 
   transform(matrix: Matrix) {

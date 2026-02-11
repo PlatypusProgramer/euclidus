@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
+import type { LineEntity } from '../domain/entities/LineEntity';
+import type { RenderContext } from './RenderContext';
 
 export interface LineRenderModel {
   name: string;
@@ -14,38 +16,54 @@ export class LineLayer {
   private lines: Map<string, LineRenderModel> = new Map();
   private layer: PIXI.Container;
   private camera: Camera;
+  private style: RenderContext['styles']['line'] | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
     this.camera = camera;
   }
 
-  addLine(name: string, rootX: number, rootY: number, directionX: number, directionY: number) {
-    if (this.lines.has(name)) {
-      this.removeLine(name);
+  sync(lines: LineEntity[], ctx: RenderContext) {
+    this.style = ctx.styles.line;
+    const seen = new Set<string>();
+
+    for (const entity of lines) {
+      const name = entity.name;
+      seen.add(name);
+      const rootX = entity.root.x;
+      const rootY = entity.root.y;
+      const directionX = entity.direction.x;
+      const directionY = entity.direction.y;
+
+      let line = this.lines.get(name);
+      if (!line) {
+        line = {
+          name,
+          root: { x: rootX, y: rootY },
+          direction: { x: directionX, y: directionY },
+        };
+        const graphics = new PIXI.Graphics();
+        line.graphics = graphics;
+        this.layer.addChild(graphics);
+        this.lines.set(name, line);
+      } else {
+        line.root.x = rootX;
+        line.root.y = rootY;
+        line.direction.x = directionX;
+        line.direction.y = directionY;
+      }
+
+      this.updateLineVisuals(line);
     }
 
-    const line: LineRenderModel = {
-      name,
-      root: { x: rootX, y: rootY },
-      direction: { x: directionX, y: directionY },
-    };
-
-    const graphics = new PIXI.Graphics();
-    line.graphics = graphics;
-    this.layer.addChild(graphics);
-    this.lines.set(name, line);
-    this.updateLineVisuals(line);
-  }
-
-  updateLine(name: string, rootX: number, rootY: number, directionX: number, directionY: number) {
-    const line = this.lines.get(name);
-    if (!line) return;
-    line.root.x = rootX;
-    line.root.y = rootY;
-    line.direction.x = directionX;
-    line.direction.y = directionY;
-    this.updateLineVisuals(line);
+    for (const [name, line] of this.lines.entries()) {
+      if (!seen.has(name)) {
+        if (line.graphics) {
+          this.layer.removeChild(line.graphics);
+        }
+        this.lines.delete(name);
+      }
+    }
   }
 
   updateLineVisuals(line: LineRenderModel) {
@@ -59,27 +77,30 @@ export class LineLayer {
     }
 
     const scale = this.camera.getScale();
-    const strokeWidth = 2 / scale;
+    const strokeWidth = (this.style?.width ?? 2) / scale;
+    const color = this.style?.color ?? 0xffffff;
+    const alpha = this.style?.alpha ?? 0.7;
 
-    line.graphics.setStrokeStyle({ width: strokeWidth, color: 0xffffff, alpha: 0.7 });
+    line.graphics.setStrokeStyle({ width: strokeWidth, color, alpha });
     line.graphics.moveTo(segment.start.x, segment.start.y);
     line.graphics.lineTo(segment.end.x, segment.end.y);
     line.graphics.stroke();
   }
 
-  updateAllVisuals() {
+  updateAllVisuals(ctx: RenderContext) {
+    this.style = ctx.styles.line;
     for (const line of this.lines.values()) {
       this.updateLineVisuals(line);
     }
   }
 
-  removeLine(name: string) {
-    const line = this.lines.get(name);
-    if (!line) return;
-    if (line.graphics) {
-      this.layer.removeChild(line.graphics);
+  clear() {
+    for (const line of this.lines.values()) {
+      if (line.graphics) {
+        this.layer.removeChild(line.graphics);
+      }
     }
-    this.lines.delete(name);
+    this.lines.clear();
   }
 
   private getSegmentForBounds(line: LineRenderModel, bounds: Bounds) {

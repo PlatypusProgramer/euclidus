@@ -1,5 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
+import type { LineSegmentEntity } from '../domain/entities/LineSegmentEntity';
+import type { RenderContext } from './RenderContext';
 
 export interface LineSegmentRenderModel {
   name: string;
@@ -12,64 +14,84 @@ export class LineSegmentLayer {
   private lines: Map<string, LineSegmentRenderModel> = new Map();
   private layer: PIXI.Container;
   private camera: Camera;
+  private style: RenderContext['styles']['segment'] | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
     this.camera = camera;
   }
 
-  addLine(name: string, startX: number, startY: number, endX: number, endY: number) {
-    if (this.lines.has(name)) {
-      this.removeLine(name);
+  sync(lines: LineSegmentEntity[], ctx: RenderContext) {
+    this.style = ctx.styles.segment;
+    const seen = new Set<string>();
+
+    for (const entity of lines) {
+      const name = entity.name;
+      seen.add(name);
+      const startX = entity.start.x;
+      const startY = entity.start.y;
+      const endX = entity.end.x;
+      const endY = entity.end.y;
+
+      let line = this.lines.get(name);
+      if (!line) {
+        line = {
+          name,
+          start: { x: startX, y: startY },
+          end: { x: endX, y: endY },
+        };
+
+        const graphics = new PIXI.Graphics();
+        line.graphics = graphics;
+        this.layer.addChild(graphics);
+        this.lines.set(name, line);
+      } else {
+        line.start.x = startX;
+        line.start.y = startY;
+        line.end.x = endX;
+        line.end.y = endY;
+      }
+
+      this.updateLineVisuals(line);
     }
 
-    const line: LineSegmentRenderModel = {
-      name,
-      start: { x: startX, y: startY },
-      end: { x: endX, y: endY },
-    };
-
-    const graphics = new PIXI.Graphics();
-    line.graphics = graphics;
-    this.layer.addChild(graphics);
-    this.lines.set(name, line);
-    this.updateLineVisuals(line);
-  }
-
-  updateLine(name: string, startX: number, startY: number, endX: number, endY: number) {
-    const line = this.lines.get(name);
-    if (!line) return;
-    line.start.x = startX;
-    line.start.y = startY;
-    line.end.x = endX;
-    line.end.y = endY;
-    this.updateLineVisuals(line);
+    for (const [name, line] of this.lines.entries()) {
+      if (!seen.has(name)) {
+        if (line.graphics) {
+          this.layer.removeChild(line.graphics);
+        }
+        this.lines.delete(name);
+      }
+    }
   }
 
   updateLineVisuals(line: LineSegmentRenderModel) {
     if (!line.graphics) return;
     const scale = this.camera.getScale();
-    const strokeWidth = 2 / scale;
+    const strokeWidth = (this.style?.width ?? 2) / scale;
+    const color = this.style?.color ?? 0xffffff;
+    const alpha = this.style?.alpha ?? 0.9;
 
     line.graphics.clear();
-    line.graphics.setStrokeStyle({ width: strokeWidth, color: 0xffffff, alpha: 0.9 });
+    line.graphics.setStrokeStyle({ width: strokeWidth, color, alpha });
     line.graphics.moveTo(line.start.x, line.start.y);
     line.graphics.lineTo(line.end.x, line.end.y);
     line.graphics.stroke();
   }
 
-  updateAllVisuals() {
+  updateAllVisuals(ctx: RenderContext) {
+    this.style = ctx.styles.segment;
     for (const line of this.lines.values()) {
       this.updateLineVisuals(line);
     }
   }
 
-  removeLine(name: string) {
-    const line = this.lines.get(name);
-    if (!line) return;
-    if (line.graphics) {
-      this.layer.removeChild(line.graphics);
+  clear() {
+    for (const line of this.lines.values()) {
+      if (line.graphics) {
+        this.layer.removeChild(line.graphics);
+      }
     }
-    this.lines.delete(name);
+    this.lines.clear();
   }
 }

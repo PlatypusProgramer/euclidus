@@ -3,23 +3,16 @@ import type { ConstraintContext, VariableRef } from './types';
 import { pointVar } from './types';
 import { createGuid } from '../../utils/guid';
 
-export type PerpendicularSource =
-  | { type: 'line'; start: string; end: string; lineName?: string }
-  | { type: 'segment'; start: string; end: string; segmentName?: string };
+export type EqualLengthSource = { start: string; end: string; segmentName?: string };
 
-export class PerpendicularConstraint implements Constraint {
+export class EqualLengthConstraint implements Constraint {
   id: string;
-  type: string = 'perpendicular';
+  type: string = 'equalLength';
   weight?: number;
-  sourceA: PerpendicularSource;
-  sourceB: PerpendicularSource;
+  sourceA: EqualLengthSource;
+  sourceB: EqualLengthSource;
 
-  constructor(
-    sourceA: PerpendicularSource,
-    sourceB: PerpendicularSource,
-    id: string = createGuid(),
-    weight?: number
-  ) {
+  constructor(sourceA: EqualLengthSource, sourceB: EqualLengthSource, id: string = createGuid(), weight?: number) {
     this.id = id;
     this.sourceA = sourceA;
     this.sourceB = sourceB;
@@ -33,21 +26,16 @@ export class PerpendicularConstraint implements Constraint {
   evaluate(ctx: ConstraintContext): number[] {
     const d1 = this.getDirection(this.sourceA, ctx);
     const d2 = this.getDirection(this.sourceB, ctx);
-    return [d1.x * d2.x + d1.y * d2.y];
+    return [d1.x * d1.x + d1.y * d1.y - (d2.x * d2.x + d2.y * d2.y)];
   }
 
   jacobian(ctx: ConstraintContext): number[][] {
     const d1 = this.getDirection(this.sourceA, ctx);
     const d2 = this.getDirection(this.sourceB, ctx);
-    const row: number[] = [];
-
-    this.appendDerivatives(d2, row);
-    this.appendDerivatives(d1, row);
-
-    return [row];
+    return [[-2 * d1.x, -2 * d1.y, 2 * d1.x, 2 * d1.y, 2 * d2.x, 2 * d2.y, -2 * d2.x, -2 * d2.y]];
   }
 
-  private getSourceVariables(source: PerpendicularSource): VariableRef[] {
+  private getSourceVariables(source: EqualLengthSource): VariableRef[] {
     return [
       pointVar(source.start, 'x'),
       pointVar(source.start, 'y'),
@@ -56,13 +44,9 @@ export class PerpendicularConstraint implements Constraint {
     ];
   }
 
-  private getDirection(source: PerpendicularSource, ctx: ConstraintContext): { x: number; y: number } {
+  private getDirection(source: EqualLengthSource, ctx: ConstraintContext): { x: number; y: number } {
     const start = ctx.getPoint(source.start);
     const end = ctx.getPoint(source.end);
     return { x: end.x - start.x, y: end.y - start.y };
-  }
-
-  private appendDerivatives(otherDir: { x: number; y: number }, row: number[]) {
-    row.push(-otherDir.x, -otherDir.y, otherDir.x, otherDir.y);
   }
 }

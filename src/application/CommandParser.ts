@@ -1,13 +1,24 @@
 export type ParsedCommand =
   | { type: 'addPoint'; name: string; x: number; y: number }
   | { type: 'addLineSegment'; name: string; start: string; end: string }
-  | { type: 'addLine'; name: string; root: string; directionX: number; directionY: number }
+  | { type: 'addLine'; name: string; start: string; end: string }
+  | { type: 'addLineFromSegment'; name: string; segment: string }
   | { type: 'lockPoint'; name: string }
   | { type: 'unlockPoint'; name: string }
   | {
       type: 'addPerpendicular';
       a: { type: 'line' | 'lineSegment'; name: string };
       b: { type: 'line' | 'lineSegment'; name: string };
+    }
+  | {
+      type: 'addParallel';
+      a: { type: 'line' | 'lineSegment'; name: string };
+      b: { type: 'line' | 'lineSegment'; name: string };
+    }
+  | {
+      type: 'addEqualLength';
+      a: string;
+      b: string;
     }
   | { type: 'invalid'; reason: string };
 
@@ -47,20 +58,27 @@ export function parseCommand(input: string): ParsedCommand {
     return { type: 'addLineSegment', name, start, end };
   }
 
-  const lineMatch = lowered.match(
-    /^(new|add)\s+line\s+([a-z]+)\s+([a-z])\s+([\-\d.]+)[,\s]+([\-\d.]+)$/i
-  );
-  if (lineMatch) {
-    const name = lineMatch[2].toUpperCase();
-    const root = lineMatch[3].toUpperCase();
-    const directionX = parseFloat(lineMatch[4]);
-    const directionY = parseFloat(lineMatch[5]);
+  const lineFromSegmentMatch = lowered.match(/^(new|add)\s+line\s+([a-z]+)\s+(segment|linesegment)\s+([a-z0-9]+)$/i);
+  if (lineFromSegmentMatch) {
+    const name = lineFromSegmentMatch[2].toUpperCase();
+    const segment = lineFromSegmentMatch[4].toUpperCase();
+    return { type: 'addLineFromSegment', name, segment };
+  }
 
-    if (Number.isNaN(directionX) || Number.isNaN(directionY)) {
-      return { type: 'invalid', reason: 'Invalid direction vector' };
-    }
+  const linePointsMatch = lowered.match(/^(new|add)\s+line\s+([a-z]+)\s+([a-z])\s+([a-z])$/i);
+  if (linePointsMatch) {
+    const name = linePointsMatch[2].toUpperCase();
+    const start = linePointsMatch[3].toUpperCase();
+    const end = linePointsMatch[4].toUpperCase();
+    return { type: 'addLine', name, start, end };
+  }
 
-    return { type: 'addLine', name, root, directionX, directionY };
+  const linePairMatch = lowered.match(/^(new|add)\s+line\s+([a-z]+)\s+([a-z]{2})$/i);
+  if (linePairMatch) {
+    const name = linePairMatch[2].toUpperCase();
+    const start = linePairMatch[3][0].toUpperCase();
+    const end = linePairMatch[3][1].toUpperCase();
+    return { type: 'addLine', name, start, end };
   }
 
   const lockMatch = lowered.match(/^lock\s+point\s+([a-z])$/i);
@@ -76,17 +94,40 @@ export function parseCommand(input: string): ParsedCommand {
   }
 
   const perpendicularMatch = lowered.match(
-    /^(perpendicular|perp)\s+(line|segment|linesegment)\s+([a-z0-9]+)\s+(line|segment|linesegment)\s+([a-z0-9]+)$/i
+    /^(add\s*)?(perpendicular|perp)\s+(line|segment|linesegment)\s+([a-z0-9]+)\s+(line|segment|linesegment)\s+([a-z0-9]+)$/i
   );
   if (perpendicularMatch) {
     const normalizeType = (value: string): 'line' | 'lineSegment' =>
       value.startsWith('line') ? 'line' : 'lineSegment';
-    const aType = normalizeType(perpendicularMatch[2].toLowerCase());
-    const bType = normalizeType(perpendicularMatch[4].toLowerCase());
-    const aName = perpendicularMatch[3].toUpperCase();
-    const bName = perpendicularMatch[5].toUpperCase();
+    const aType = normalizeType(perpendicularMatch[3].toLowerCase());
+    const bType = normalizeType(perpendicularMatch[5].toLowerCase());
+    const aName = perpendicularMatch[4].toUpperCase();
+    const bName = perpendicularMatch[6].toUpperCase();
 
     return { type: 'addPerpendicular', a: { type: aType, name: aName }, b: { type: bType, name: bName } };
+  }
+
+  const parallelMatch = lowered.match(
+    /^(add\s*)?(parallel|par)\s+(line|segment|linesegment)\s+([a-z0-9]+)\s+(line|segment|linesegment)\s+([a-z0-9]+)$/i
+  );
+  if (parallelMatch) {
+    const normalizeType = (value: string): 'line' | 'lineSegment' =>
+      value.startsWith('line') ? 'line' : 'lineSegment';
+    const aType = normalizeType(parallelMatch[3].toLowerCase());
+    const bType = normalizeType(parallelMatch[5].toLowerCase());
+    const aName = parallelMatch[4].toUpperCase();
+    const bName = parallelMatch[6].toUpperCase();
+
+    return { type: 'addParallel', a: { type: aType, name: aName }, b: { type: bType, name: bName } };
+  }
+
+  const equalLengthMatch = lowered.match(
+    /^(add\s*)?(equal|equals|eq|equal-length|equallength)\s+(segment|linesegment)\s+([a-z0-9]+)\s+(segment|linesegment)\s+([a-z0-9]+)$/i
+  );
+  if (equalLengthMatch) {
+    const aName = equalLengthMatch[4].toUpperCase();
+    const bName = equalLengthMatch[6].toUpperCase();
+    return { type: 'addEqualLength', a: aName, b: bName };
   }
 
   return { type: 'invalid', reason: 'Unrecognized command' };

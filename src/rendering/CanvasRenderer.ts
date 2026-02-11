@@ -4,11 +4,11 @@ import { ViewportOverlay } from '../utils/ViewportOverlay';
 import { PointLayer } from './PointLayer';
 import { ViewportController } from './ViewportController';
 import type { RendererPort } from '../application/ports/RendererPort';
-import type { PointEntity } from '../domain/entities/PointEntity';
-import type { LineEntity } from '../domain/entities/LineEntity';
-import type { LineSegmentEntity } from '../domain/entities/LineSegmentEntity';
 import { LineSegmentLayer } from './LineSegmentLayer';
 import { LineLayer } from './LineLayer';
+import { ConstraintLayer } from './ConstraintLayer';
+import type { AppState } from '../application/state/AppState';
+import type { RenderContext, RenderStyles } from './RenderContext';
 
 export class CanvasRenderer implements RendererPort {
   app!: PIXI.Application;
@@ -18,7 +18,15 @@ export class CanvasRenderer implements RendererPort {
   private pointLayer!: PointLayer;
   private lineSegmentLayer!: LineSegmentLayer;
   private lineLayer!: LineLayer;
+  private constraintLayer!: ConstraintLayer;
   private onPointDrag?: (name: string, x: number, y: number) => void;
+  private lastState: AppState | null = null;
+  private styles: RenderStyles = {
+    point: { radius: 6, color: 0xff8c00, hoverColor: 0xfff1c7 },
+    line: { width: 2, color: 0xffffff, alpha: 0.7 },
+    segment: { width: 2, color: 0xffffff, alpha: 0.9 },
+    constraint: { width: 2, color: 0xffffff, alpha: 0.8, dash: [6, 6], markerSize: 10 },
+  };
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -43,18 +51,23 @@ export class CanvasRenderer implements RendererPort {
 
     const camera = new Camera(25); // 25 pixels per unit
     const overlay = new ViewportOverlay(camera);
-    this.pointLayer = new PointLayer(this.worldLayer, camera);
-    this.lineSegmentLayer = new LineSegmentLayer(this.worldLayer, camera);
-    this.lineLayer = new LineLayer(this.worldLayer, camera);
+    const lineContainer = new PIXI.Container();
+    const segmentContainer = new PIXI.Container();
+    const constraintContainer = new PIXI.Container();
+    const pointContainer = new PIXI.Container();
+    this.worldLayer.addChild(lineContainer, segmentContainer, constraintContainer, pointContainer);
+
+    this.pointLayer = new PointLayer(pointContainer, camera);
+    this.lineSegmentLayer = new LineSegmentLayer(segmentContainer, camera);
+    this.lineLayer = new LineLayer(lineContainer, camera);
+    this.constraintLayer = new ConstraintLayer(constraintContainer);
     this.viewport = new ViewportController({
       camera,
       overlay,
       worldLayer: this.worldLayer,
       canvas: this.app.canvas as HTMLCanvasElement,
       updatePointVisuals: () => {
-        this.pointLayer.updateAllVisuals();
-        this.lineSegmentLayer.updateAllVisuals();
-        this.lineLayer.updateAllVisuals();
+        this.updateAllVisuals();
       },
       findPointAt: (worldX, worldY) => {
         const point = this.pointLayer.getPointAt(worldX, worldY);
@@ -68,9 +81,7 @@ export class CanvasRenderer implements RendererPort {
         if (this.onPointDrag) {
           this.onPointDrag(name, worldX, worldY);
         } else {
-          this.pointLayer.updatePoint(name, worldX, worldY);
-          this.lineSegmentLayer.updateAllVisuals();
-          this.lineLayer.updateAllVisuals();
+          this.pointLayer.movePoint(name, worldX, worldY);
         }
       },
     });
@@ -91,40 +102,13 @@ export class CanvasRenderer implements RendererPort {
     this.viewport.refreshView();
   }
 
-  addPoint(point: PointEntity) {
-    this.pointLayer.addPoint(point.name, point.x, point.y);
-  }
-
-  updatePoint(point: PointEntity) {
-    this.pointLayer.updatePoint(point.name, point.x, point.y);
-  }
-
-  removePoint(label: string) {
-    this.pointLayer.removePoint(label);
-  }
-
-  addLineSegment(line: LineSegmentEntity) {
-    this.lineSegmentLayer.addLine(line.name, line.start.x, line.start.y, line.end.x, line.end.y);
-  }
-
-  updateLineSegment(line: LineSegmentEntity) {
-    this.lineSegmentLayer.updateLine(line.name, line.start.x, line.start.y, line.end.x, line.end.y);
-  }
-
-  removeLineSegment(name: string) {
-    this.lineSegmentLayer.removeLine(name);
-  }
-
-  addLine(line: LineEntity) {
-    this.lineLayer.addLine(line.name, line.root.x, line.root.y, line.direction.x, line.direction.y);
-  }
-
-  updateLine(line: LineEntity) {
-    this.lineLayer.updateLine(line.name, line.root.x, line.root.y, line.direction.x, line.direction.y);
-  }
-
-  removeLine(name: string) {
-    this.lineLayer.removeLine(name);
+  render(state: AppState) {
+    this.lastState = state;
+    const ctx = this.buildContext(state);
+    this.lineLayer.sync(state.getAllLines(), ctx);
+    this.lineSegmentLayer.sync(state.getAllLineSegments(), ctx);
+    this.constraintLayer.sync(state.getConstraints(), ctx);
+    this.pointLayer.sync(state.getAllPoints(), ctx);
   }
 
   setHoveredPoint(name: string | null) {
@@ -141,5 +125,25 @@ export class CanvasRenderer implements RendererPort {
 
   getCamera() {
     return this.viewport.getCamera();
+  }
+
+  private buildContext(state: AppState): RenderContext {
+    const camera = this.viewport.getCamera();
+    return {
+      state,
+      camera,
+      bounds: camera.getVisibleBounds(),
+      scale: camera.getScale(),
+      styles: this.styles,
+    };
+  }
+
+  private updateAllVisuals() {
+    if (!this.lastState) return;
+    const ctx = this.buildContext(this.lastState);
+    this.lineLayer.updateAllVisuals(ctx);
+    this.lineSegmentLayer.updateAllVisuals(ctx);
+    this.constraintLayer.updateAllVisuals(ctx);
+    this.pointLayer.updateAllVisuals(ctx);
   }
 }

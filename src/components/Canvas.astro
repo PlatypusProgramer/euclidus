@@ -30,9 +30,100 @@
         // Expose to window for CLI to access
         (window as any).euclidus = { engine };
 
+        // Right triangle and square outlines for a Pythagoras-style scene.
         engine.addPoint('A', 0, 0);
-        engine.addPoint('B', 15, 15);
+        engine.addPoint('B', 20, 0);
+        engine.addPoint('C', 0, 15);
+        engine.addFixedPointConstraint('A', 0, 0);
+
+        // Square on AB (side length 20).
+        engine.addPoint('D', 20, -20);
+        engine.addPoint('E', 0, -20);
+
+        // Square on AC (side length 15).
+        engine.addPoint('F', -15, 0);
+        engine.addPoint('G', -15, 15);
+
+        // Square on BC (side length 25).
+        engine.addPoint('H', 35, 20);
+        engine.addPoint('I', 15, 35);
+
+        // Triangle edges.
         engine.addLineSegment('AB', 'A', 'B');
+        engine.addLineSegment('AC', 'A', 'C');
+        engine.addLineSegment('BC', 'B', 'C');
+
+        // Square AB outline.
+        engine.addLineSegment('BD', 'B', 'D');
+        engine.addLineSegment('DE', 'D', 'E');
+        engine.addLineSegment('EA', 'E', 'A');
+
+        // Square AC outline.
+        engine.addLineSegment('AF', 'A', 'F');
+        engine.addLineSegment('FG', 'F', 'G');
+        engine.addLineSegment('GC', 'G', 'C');
+
+        // Square BC outline.
+        engine.addLineSegment('BH', 'B', 'H');
+        engine.addLineSegment('HI', 'H', 'I');
+        engine.addLineSegment('IC', 'I', 'C');
+
+        // Constraints: right triangle at A.
+        engine.addPerpendicularConstraint(
+          { type: 'lineSegment', name: 'AB' },
+          { type: 'lineSegment', name: 'AC' }
+        );
+
+        // Constraints: square on AB (parallel pairs).
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'AB' },
+          { type: 'lineSegment', name: 'DE' }
+        );
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'BD' },
+          { type: 'lineSegment', name: 'EA' }
+        );
+        engine.addPerpendicularConstraint(
+          { type: 'lineSegment', name: 'AB' },
+          { type: 'lineSegment', name: 'BD' }
+        );
+        engine.addEqualLengthConstraint('AB', 'BD');
+        engine.addEqualLengthConstraint('AB', 'EA');
+        engine.addEqualLengthConstraint('AB', 'DE');
+
+        // Constraints: square on AC (parallel pairs).
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'AF' },
+          { type: 'lineSegment', name: 'GC' }
+        );
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'AC' },
+          { type: 'lineSegment', name: 'FG' }
+        );
+        engine.addPerpendicularConstraint(
+          { type: 'lineSegment', name: 'AC' },
+          { type: 'lineSegment', name: 'AF' }
+        );
+        engine.addEqualLengthConstraint('AC', 'AF');
+        engine.addEqualLengthConstraint('AC', 'GC');
+        engine.addEqualLengthConstraint('AC', 'FG');
+
+        // Constraints: square on BC (parallel pairs).
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'BC' },
+          { type: 'lineSegment', name: 'HI' }
+        );
+        engine.addParallelConstraint(
+          { type: 'lineSegment', name: 'BH' },
+          { type: 'lineSegment', name: 'IC' }
+        );
+        engine.addPerpendicularConstraint(
+          { type: 'lineSegment', name: 'BC' },
+          { type: 'lineSegment', name: 'BH' }
+        );
+        engine.addEqualLengthConstraint('BC', 'BH');
+        engine.addEqualLengthConstraint('BC', 'IC');
+        engine.addEqualLengthConstraint('BC', 'HI');
       } catch (error) {
         console.error('Canvas init failed:', error);
         if (typeof (window as any).addLog === 'function') {

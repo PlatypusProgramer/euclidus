@@ -70,7 +70,7 @@ export class AppState {
   getLinesForPoint(pointName: string) {
     const matches: LineEntity[] = [];
     for (const line of this.lines.values()) {
-      if (line.root.name === pointName) {
+      if (line.root.name === pointName || line.directionPoint.name === pointName) {
         matches.push(line);
       }
     }

@@ -1,53 +1,67 @@
-import { multiply } from 'mathjs';
 import type { Matrix } from 'mathjs';
-import type { CanvasRenderer } from '../../rendering/CanvasRenderer';
 import type { GeometryEntity } from './GeometryEntity';
 import type { PointEntity } from './PointEntity';
+import { LineSegmentEntity } from './LineSegmentEntity';
 import { createGuid } from '../../utils/guid';
 
 export class LineEntity implements GeometryEntity {
   id: string;
   name: string;
   root: PointEntity;
-  direction: { x: number; y: number };
+  directionPoint: PointEntity;
 
+  constructor(name: string, root: PointEntity, directionPoint: PointEntity, id?: string);
+  constructor(name: string, segment: LineSegmentEntity, id?: string);
   constructor(
     name: string,
-    root: PointEntity,
-    directionX: number,
-    directionY: number,
-    id: string = createGuid(),
+    arg1: PointEntity | LineSegmentEntity,
+    arg2?: PointEntity | string,
+    arg3?: string
   ) {
-    if (directionX === 0 && directionY === 0) {
+    let root: PointEntity;
+    let directionPoint: PointEntity;
+    let id: string | undefined;
+
+    if (arg1 instanceof LineSegmentEntity) {
+      root = arg1.start;
+      directionPoint = arg1.end;
+      id = typeof arg2 === 'string' ? arg2 : undefined;
+    } else {
+      if (!arg2 || typeof arg2 === 'string') {
+        throw new Error('Line constructor requires a direction point');
+      }
+      root = arg1;
+      directionPoint = arg2;
+      id = arg3;
+    }
+
+    if (directionPoint.x === root.x && directionPoint.y === root.y) {
       throw new Error('Line direction cannot be a zero vector');
     }
-    this.id = id;
+
+    this.id = id ?? createGuid();
     this.name = name;
     this.root = root;
-    this.direction = { x: directionX, y: directionY };
+    this.directionPoint = directionPoint;
   }
 
-  setRoot(root: PointEntity) {
-    this.root = root;
+  get direction() {
+    return {
+      x: this.directionPoint.x - this.root.x,
+      y: this.directionPoint.y - this.root.y,
+    };
   }
 
-  setDirection(directionX: number, directionY: number) {
-    if (directionX === 0 && directionY === 0) {
+  setPoints(root: PointEntity, directionPoint: PointEntity) {
+    if (directionPoint.x === root.x && directionPoint.y === root.y) {
       throw new Error('Line direction cannot be a zero vector');
     }
-    this.direction.x = directionX;
-    this.direction.y = directionY;
-  }
-
-  draw(renderer: CanvasRenderer) {
-    renderer.addLine(this);
+    this.root = root;
+    this.directionPoint = directionPoint;
   }
 
   transform(matrix: Matrix) {
     this.root.transform(matrix);
-    const result = multiply(matrix, [this.direction.x, this.direction.y, 0]) as any;
-    const coords = result?.valueOf ? result.valueOf() : result;
-    this.direction.x = coords[0];
-    this.direction.y = coords[1];
+    this.directionPoint.transform(matrix);
   }
 }

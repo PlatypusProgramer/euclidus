@@ -3,8 +3,7 @@ import type { LineSegmentEntity } from '../entities/LineSegmentEntity';
 import type { PointEntity } from '../entities/PointEntity';
 
 export type VariableRef =
-  | { kind: 'point'; name: string; component: 'x' | 'y' }
-  | { kind: 'lineDirection'; name: string; component: 'x' | 'y' };
+  | { kind: 'point'; name: string; component: 'x' | 'y' };
 
 export interface ConstraintContext {
   getPoint(name: string): PointEntity;
@@ -14,12 +13,6 @@ export interface ConstraintContext {
 
 export const pointVar = (name: string, component: 'x' | 'y'): VariableRef => ({
   kind: 'point',
-  name,
-  component,
-});
-
-export const lineDirectionVar = (name: string, component: 'x' | 'y'): VariableRef => ({
-  kind: 'lineDirection',
   name,
   component,
 });

@@ -43,41 +43,22 @@ export class VariableRegistry {
   }
 
   getValue(ref: VariableRef): number {
-    if (ref.kind === 'point') {
-      const point = this.state.getPoint(ref.name);
-      if (!point) {
-        throw new Error(`Point ${ref.name} not found`);
-      }
-      return ref.component === 'x' ? point.x : point.y;
+    const point = this.state.getPoint(ref.name);
+    if (!point) {
+      throw new Error(`Point ${ref.name} not found`);
     }
-    const line = this.state.getLine(ref.name);
-    if (!line) {
-      throw new Error(`Line ${ref.name} not found`);
-    }
-    return ref.component === 'x' ? line.direction.x : line.direction.y;
+    return ref.component === 'x' ? point.x : point.y;
   }
 
   setValue(ref: VariableRef, value: number) {
-    if (ref.kind === 'point') {
-      const point = this.state.getPoint(ref.name);
-      if (!point) {
-        throw new Error(`Point ${ref.name} not found`);
-      }
-      if (ref.component === 'x') {
-        point.x = value;
-      } else {
-        point.y = value;
-      }
-      return;
-    }
-    const line = this.state.getLine(ref.name);
-    if (!line) {
-      throw new Error(`Line ${ref.name} not found`);
+    const point = this.state.getPoint(ref.name);
+    if (!point) {
+      throw new Error(`Point ${ref.name} not found`);
     }
     if (ref.component === 'x') {
-      line.direction.x = value;
+      point.x = value;
     } else {
-      line.direction.y = value;
+      point.y = value;
     }
   }
 

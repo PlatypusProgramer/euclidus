@@ -1,6 +1,5 @@
 import { multiply } from 'mathjs';
 import type { Matrix } from 'mathjs';
-import type { CanvasRenderer } from '../../rendering/CanvasRenderer';
 import type { GeometryEntity } from './GeometryEntity';
 import { createGuid } from '../../utils/guid';
 
@@ -20,10 +19,6 @@ export class PointEntity implements GeometryEntity {
   setPosition(x: number, y: number) {
     this.x = x;
     this.y = y;
-  }
-
-  draw(renderer: CanvasRenderer) {
-    renderer.addPoint(this);
   }
 
   transform(matrix: Matrix) {

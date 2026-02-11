@@ -1,6 +1,8 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
 import { Transform } from '../utils/Transform';
+import type { PointEntity } from '../domain/entities/PointEntity';
+import type { RenderContext } from './RenderContext';
 
 export interface Point {
   label: string;
@@ -16,14 +18,14 @@ export class PointLayer {
   private layer: PIXI.Container;
   private camera: Camera;
   private hoveredLabel: string | null = null;
+  private lastContext: RenderContext | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
     this.camera = camera;
   }
 
-  updatePointDisplay(point: Point) {
-    const scale = this.camera.getScale();
+  updatePointDisplay(point: Point, scale: number) {
     const labelOffset = 12 / scale;
 
     if (point.graphics) {
@@ -37,11 +39,11 @@ export class PointLayer {
     }
   }
 
-  updatePointVisuals(point: Point) {
+  updatePointVisuals(point: Point, ctx: RenderContext) {
     if (!point.graphics || !point.text) return;
-    const scale = this.camera.getScale();
+    const scale = ctx.scale;
     const isHovered = this.hoveredLabel === point.label;
-    const radius = 6 / scale;
+    const radius = ctx.styles.point.radius / scale;
     const glowRadius = 12 / scale;
     const labelOffset = 12 / scale;
 
@@ -53,25 +55,29 @@ export class PointLayer {
       point.graphics.fill({ color: 0xffd27a, alpha: 0.35 });
     }
     point.graphics.circle(0, 0, radius);
-    point.graphics.fill({ color: isHovered ? 0xfff1c7 : 0xff8c00 });
+    point.graphics.fill({ color: isHovered ? ctx.styles.point.hoverColor : ctx.styles.point.color });
 
     point.text.scale.set(1 / scale, -1 / scale);
     point.text.x = point.x + labelOffset;
     point.text.y = point.y - labelOffset;
   }
 
-  updatePoint(label: string, x: number, y: number) {
+  movePoint(label: string, x: number, y: number) {
     const point = this.points.get(label);
     if (!point) return;
     point.x = x;
     point.y = y;
     point.transform.setPosition(x, y);
-    this.updatePointDisplay(point);
+    if (this.lastContext) {
+      this.updatePointDisplay(point, this.lastContext.scale);
+      this.updatePointVisuals(point, this.lastContext);
+    }
   }
 
-  updateAllVisuals() {
+  updateAllVisuals(ctx: RenderContext) {
+    this.lastContext = ctx;
     for (const point of this.points.values()) {
-      this.updatePointVisuals(point);
+      this.updatePointVisuals(point, ctx);
     }
   }
 
@@ -79,13 +85,14 @@ export class PointLayer {
     if (this.hoveredLabel === label) return;
     const previous = this.hoveredLabel;
     this.hoveredLabel = label;
+    if (!this.lastContext) return;
     if (previous) {
       const point = this.points.get(previous);
-      if (point) this.updatePointVisuals(point);
+      if (point) this.updatePointVisuals(point, this.lastContext);
     }
     if (label) {
       const point = this.points.get(label);
-      if (point) this.updatePointVisuals(point);
+      if (point) this.updatePointVisuals(point, this.lastContext);
     }
   }
 
@@ -108,51 +115,75 @@ export class PointLayer {
     return closest;
   }
 
-  addPoint(label: string, x: number, y: number) {
-    if (this.points.has(label)) {
-      this.removePoint(label);
+  sync(points: PointEntity[], ctx: RenderContext) {
+    this.lastContext = ctx;
+    const seen = new Set<string>();
+
+    for (const entity of points) {
+      const label = entity.name;
+      seen.add(label);
+      const x = entity.x;
+      const y = entity.y;
+
+      let point = this.points.get(label);
+      if (!point) {
+        const transform = new Transform(x, y);
+        point = { label, x, y, transform };
+
+        const graphics = new PIXI.Graphics();
+        graphics.position.x = x;
+        graphics.position.y = y;
+        this.layer.addChild(graphics);
+        point.graphics = graphics;
+
+        const text = new PIXI.Text({
+          text: label,
+          style: {
+            fontSize: 16,
+            fill: 0xffffff,
+            fontWeight: 'bold',
+          },
+        });
+        this.layer.addChild(text);
+        point.text = text;
+
+        this.points.set(label, point);
+      } else {
+        point.x = x;
+        point.y = y;
+        point.transform.setPosition(x, y);
+      }
+
+      this.updatePointDisplay(point, ctx.scale);
+      this.updatePointVisuals(point, ctx);
     }
 
-    const transform = new Transform(x, y);
-    const point: Point = { label, x, y, transform };
-
-    const graphics = new PIXI.Graphics();
-    const scale = this.camera.getScale();
-    graphics.circle(0, 0, 6 / scale);
-    graphics.fill({ color: 0xff8c00 });
-    graphics.position.x = x;
-    graphics.position.y = y;
-    this.layer.addChild(graphics);
-    point.graphics = graphics;
-
-    const text = new PIXI.Text({
-      text: label,
-      style: {
-        fontSize: 16,
-        fill: 0xffffff,
-        fontWeight: 'bold',
-      },
-    });
-    text.scale.set(1 / scale, -1 / scale);
-    text.x = x + 12 / scale;
-    text.y = y - 12 / scale;
-    this.layer.addChild(text);
-    point.text = text;
-
-    this.points.set(label, point);
-    console.log(`Added point ${label} at (${x}, ${y})`);
+    for (const [label, point] of this.points.entries()) {
+      if (!seen.has(label)) {
+        if (this.hoveredLabel === label) {
+          this.hoveredLabel = null;
+        }
+        if (point.graphics) {
+          this.layer.removeChild(point.graphics);
+        }
+        if (point.text) {
+          this.layer.removeChild(point.text);
+        }
+        this.points.delete(label);
+      }
+    }
   }
 
-  removePoint(label: string) {
-    const point = this.points.get(label);
-    if (!point) return;
-    if (point.graphics) {
-      this.layer.removeChild(point.graphics);
+  clear() {
+    for (const point of this.points.values()) {
+      if (point.graphics) {
+        this.layer.removeChild(point.graphics);
+      }
+      if (point.text) {
+        this.layer.removeChild(point.text);
+      }
     }
-    if (point.text) {
-      this.layer.removeChild(point.text);
-    }
-    this.points.delete(label);
+    this.points.clear();
   }
 
   getAllPoints() {
