@@ -23,8 +23,25 @@ export class CanvasRenderer implements RendererPort {
   private lastState: AppState | null = null;
   private styles: RenderStyles = {
     point: { radius: 6, color: 0xff8c00, hoverColor: 0xfff1c7 },
-    line: { width: 2, color: 0xffffff, alpha: 0.7 },
-    segment: { width: 2, color: 0xffffff, alpha: 0.9 },
+    line: {
+      width: 1.35,
+      color: 0xff8f7a,
+      alpha: 0.85,
+      accentWidth: 2.9,
+      accentColor: 0xff8c00,
+      accentAlpha: 0.95,
+    },
+    segment: {
+      width: 4.4,
+      color: 0x7b2f16,
+      alpha: 0.74,
+      accentWidth: 2.2,
+      accentColor: 0xff9f3a,
+      accentAlpha: 0.95,
+      endpointRadius: 3.4,
+      endpointColor: 0xffc776,
+      endpointAlpha: 0.85,
+    },
     constraint: { width: 2, color: 0xffffff, alpha: 0.8, dash: [6, 6], markerSize: 10 },
   };
 

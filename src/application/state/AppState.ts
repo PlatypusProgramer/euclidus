@@ -92,4 +92,11 @@ export class AppState {
   getConstraints() {
     return Array.from(this.constraints.values());
   }
+
+  clear() {
+    this.points.clear();
+    this.lineSegments.clear();
+    this.lines.clear();
+    this.constraints.clear();
+  }
 }

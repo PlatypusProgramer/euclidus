@@ -3,8 +3,25 @@ import type { Camera } from '../utils/Camera';
 
 export type RenderStyles = {
   point: { radius: number; color: number; hoverColor: number };
-  line: { width: number; color: number; alpha: number };
-  segment: { width: number; color: number; alpha: number };
+  line: {
+    width: number;
+    color: number;
+    alpha: number;
+    accentWidth: number;
+    accentColor: number;
+    accentAlpha: number;
+  };
+  segment: {
+    width: number;
+    color: number;
+    alpha: number;
+    accentWidth: number;
+    accentColor: number;
+    accentAlpha: number;
+    endpointRadius: number;
+    endpointColor: number;
+    endpointAlpha: number;
+  };
   constraint: { width: number; color: number; alpha: number; dash: number[]; markerSize: number };
 };
 

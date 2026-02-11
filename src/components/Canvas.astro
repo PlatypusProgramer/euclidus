@@ -2,7 +2,10 @@
 // Canvas component for Euclidus geometry visualization
 ---
 
-<div id="canvas-container" style="width: 100%; height: 100%; background-color: #1a1a1a;"></div>
+<div id="canvas-shell">
+  <div id="canvas-container" style="width: 100%; height: 100%; background-color: #1a1a1a;"></div>
+  <button id="clear-scene-btn" type="button" title="Clear scene" disabled>Clear</button>
+</div>
 
 <script>
   import { CanvasRenderer } from '../rendering/CanvasRenderer';
@@ -11,6 +14,7 @@
   // Initialize canvas
   const container = document.getElementById('canvas-container');
   if (container) {
+    const clearButton = document.getElementById('clear-scene-btn') as HTMLButtonElement | null;
     // Expose a placeholder so the CLI can report status while we initialize.
     (window as any).euclidus = { engine: undefined };
     const renderer = new CanvasRenderer(container);
@@ -29,103 +33,58 @@
 
         // Expose to window for CLI to access
         (window as any).euclidus = { engine };
+        if (clearButton) {
+          clearButton.disabled = false;
+          clearButton.addEventListener('click', () => {
+            engine.clear();
+            if (typeof (window as any).addLog === 'function') {
+              (window as any).addLog('Cleared all points, lines, segments, and constraints', 'info');
+            }
+          });
+        }
 
-        // Right triangle and square outlines for a Pythagoras-style scene.
-        engine.addPoint('A', 0, 0);
-        engine.addPoint('B', 20, 0);
-        engine.addPoint('C', 0, 15);
-        engine.addFixedPointConstraint('A', 0, 0);
+        // Simple starter scene:
+        // - two parallel line segments
+        // - two perpendicular lines
+        // - two equal-length line segments
 
-        // Square on AB (side length 20).
-        engine.addPoint('D', 20, -20);
-        engine.addPoint('E', 0, -20);
-
-        // Square on AC (side length 15).
-        engine.addPoint('F', -15, 0);
-        engine.addPoint('G', -15, 15);
-
-        // Square on BC (side length 25).
-        engine.addPoint('H', 35, 20);
-        engine.addPoint('I', 15, 35);
-
-        // Triangle edges.
+        // Parallel segments: AB || CD
+        engine.addPoint('A', -16, 14);
+        engine.addPoint('B', -4, 14);
+        engine.addPoint('C', -16, 8);
+        engine.addPoint('D', -4, 8);
         engine.addLineSegment('AB', 'A', 'B');
-        engine.addLineSegment('AC', 'A', 'C');
-        engine.addLineSegment('BC', 'B', 'C');
-
-        // Square AB outline.
-        engine.addLineSegment('BD', 'B', 'D');
-        engine.addLineSegment('DE', 'D', 'E');
-        engine.addLineSegment('EA', 'E', 'A');
-
-        // Square AC outline.
-        engine.addLineSegment('AF', 'A', 'F');
-        engine.addLineSegment('FG', 'F', 'G');
-        engine.addLineSegment('GC', 'G', 'C');
-
-        // Square BC outline.
-        engine.addLineSegment('BH', 'B', 'H');
-        engine.addLineSegment('HI', 'H', 'I');
-        engine.addLineSegment('IC', 'I', 'C');
-
-        // Constraints: right triangle at A.
-        engine.addPerpendicularConstraint(
-          { type: 'lineSegment', name: 'AB' },
-          { type: 'lineSegment', name: 'AC' }
-        );
-
-        // Constraints: square on AB (parallel pairs).
+        engine.addLineSegment('CD', 'C', 'D');
         engine.addParallelConstraint(
           { type: 'lineSegment', name: 'AB' },
-          { type: 'lineSegment', name: 'DE' }
+          { type: 'lineSegment', name: 'CD' }
         );
-        engine.addParallelConstraint(
-          { type: 'lineSegment', name: 'BD' },
-          { type: 'lineSegment', name: 'EA' }
-        );
-        engine.addPerpendicularConstraint(
-          { type: 'lineSegment', name: 'AB' },
-          { type: 'lineSegment', name: 'BD' }
-        );
-        engine.addEqualLengthConstraint('AB', 'BD');
-        engine.addEqualLengthConstraint('AB', 'EA');
-        engine.addEqualLengthConstraint('AB', 'DE');
 
-        // Constraints: square on AC (parallel pairs).
-        engine.addParallelConstraint(
-          { type: 'lineSegment', name: 'AF' },
-          { type: 'lineSegment', name: 'GC' }
-        );
-        engine.addParallelConstraint(
-          { type: 'lineSegment', name: 'AC' },
-          { type: 'lineSegment', name: 'FG' }
-        );
+        // Perpendicular lines: L1 ⟂ L2
+        engine.addPoint('E', 4, 2);
+        engine.addPoint('F', 14, 2);
+        engine.addPoint('G', 9, -5);
+        engine.addPoint('H', 9, 9);
+        engine.addLine('L1', 'E', 'F');
+        engine.addLine('L2', 'G', 'H');
         engine.addPerpendicularConstraint(
-          { type: 'lineSegment', name: 'AC' },
-          { type: 'lineSegment', name: 'AF' }
+          { type: 'line', name: 'L1' },
+          { type: 'line', name: 'L2' }
         );
-        engine.addEqualLengthConstraint('AC', 'AF');
-        engine.addEqualLengthConstraint('AC', 'GC');
-        engine.addEqualLengthConstraint('AC', 'FG');
 
-        // Constraints: square on BC (parallel pairs).
-        engine.addParallelConstraint(
-          { type: 'lineSegment', name: 'BC' },
-          { type: 'lineSegment', name: 'HI' }
-        );
-        engine.addParallelConstraint(
-          { type: 'lineSegment', name: 'BH' },
-          { type: 'lineSegment', name: 'IC' }
-        );
-        engine.addPerpendicularConstraint(
-          { type: 'lineSegment', name: 'BC' },
-          { type: 'lineSegment', name: 'BH' }
-        );
-        engine.addEqualLengthConstraint('BC', 'BH');
-        engine.addEqualLengthConstraint('BC', 'IC');
-        engine.addEqualLengthConstraint('BC', 'HI');
+        // Equal-length segments: IJ == KL
+        engine.addPoint('I', -12, -8);
+        engine.addPoint('J', -6, -8);
+        engine.addPoint('K', 2, -10);
+        engine.addPoint('L', 8, -10);
+        engine.addLineSegment('IJ', 'I', 'J');
+        engine.addLineSegment('KL', 'K', 'L');
+        engine.addEqualLengthConstraint('IJ', 'KL');
       } catch (error) {
         console.error('Canvas init failed:', error);
+        if (clearButton) {
+          clearButton.disabled = true;
+        }
         if (typeof (window as any).addLog === 'function') {
           const message = error instanceof Error ? error.message : 'Unknown error';
           (window as any).addLog(`Canvas init failed: ${message}`, 'error');
@@ -157,6 +116,48 @@
 </script>
 
 <style>
+  #canvas-shell {
+    position: relative;
+    width: 100%;
+    height: 100%;
+  }
+
+  #clear-scene-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 30;
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #f6f6f6;
+    background: linear-gradient(160deg, rgba(24, 24, 24, 0.92), rgba(10, 10, 10, 0.92));
+    backdrop-filter: blur(6px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    transition: transform 120ms ease, border-color 120ms ease, background-color 120ms ease;
+  }
+
+  #clear-scene-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(255, 186, 89, 0.8);
+    background: linear-gradient(160deg, rgba(42, 35, 24, 0.94), rgba(20, 16, 10, 0.94));
+  }
+
+  #clear-scene-btn:active {
+    transform: translateY(0);
+  }
+
+  #clear-scene-btn:disabled {
+    cursor: default;
+    opacity: 0.45;
+    transform: none;
+  }
+
   #canvas-container {
     overflow: hidden;
   }

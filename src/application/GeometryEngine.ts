@@ -259,6 +259,13 @@ export class GeometryEngine {
     this.refreshRenderer();
   }
 
+  clear() {
+    this.state.clear();
+    this.lockedPointConstraints.clear();
+    this.lineDirectionConstraints.clear();
+    this.refreshRenderer();
+  }
+
   private solveConstraints() {
     const constraints = this.state.getConstraints();
     if (constraints.length === 0) return;
