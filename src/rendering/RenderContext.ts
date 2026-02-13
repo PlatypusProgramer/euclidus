@@ -1,28 +1,50 @@
 import type { AppState } from '../application/state/AppState';
 import type { Camera } from '../utils/Camera';
 
+export type PointRenderStyle = { radius: number; color: number; hoverColor: number };
+export type LineRenderStyle = {
+  width: number;
+  color: number;
+  alpha: number;
+  accentWidth: number;
+  accentColor: number;
+  accentAlpha: number;
+};
+export type SegmentRenderStyle = {
+  width: number;
+  color: number;
+  alpha: number;
+  accentWidth: number;
+  accentColor: number;
+  accentAlpha: number;
+  endpointRadius: number;
+  endpointColor: number;
+  endpointAlpha: number;
+};
+export type ConstraintRenderStyle = {
+  width: number;
+  color: number;
+  alpha: number;
+  dash: number[];
+  markerSize: number;
+};
+
+export type EntityRenderStyles = {
+  point: PointRenderStyle;
+  line: LineRenderStyle;
+  segment: SegmentRenderStyle;
+};
+
+export type ConstraintRenderStyles = {
+  fixedPoint: ConstraintRenderStyle;
+  perpendicular: ConstraintRenderStyle;
+  parallel: ConstraintRenderStyle;
+  equalLength: ConstraintRenderStyle;
+};
+
 export type RenderStyles = {
-  point: { radius: number; color: number; hoverColor: number };
-  line: {
-    width: number;
-    color: number;
-    alpha: number;
-    accentWidth: number;
-    accentColor: number;
-    accentAlpha: number;
-  };
-  segment: {
-    width: number;
-    color: number;
-    alpha: number;
-    accentWidth: number;
-    accentColor: number;
-    accentAlpha: number;
-    endpointRadius: number;
-    endpointColor: number;
-    endpointAlpha: number;
-  };
-  constraint: { width: number; color: number; alpha: number; dash: number[]; markerSize: number };
+  entities: EntityRenderStyles;
+  constraints: ConstraintRenderStyles;
 };
 
 export type RenderContext = {
@@ -32,3 +54,36 @@ export type RenderContext = {
   scale: number;
   styles: RenderStyles;
 };
+
+export function createDefaultRenderStyles(): RenderStyles {
+  return {
+    entities: {
+      point: { radius: 6, color: 0xff8c00, hoverColor: 0xfff1c7 },
+      line: {
+        width: 1.35,
+        color: 0xff8f7a,
+        alpha: 0.85,
+        accentWidth: 2.9,
+        accentColor: 0xff8c00,
+        accentAlpha: 0.95,
+      },
+      segment: {
+        width: 4.4,
+        color: 0x7b2f16,
+        alpha: 0.74,
+        accentWidth: 2.2,
+        accentColor: 0xff9f3a,
+        accentAlpha: 0.95,
+        endpointRadius: 3.4,
+        endpointColor: 0xffc776,
+        endpointAlpha: 0.85,
+      },
+    },
+    constraints: {
+      fixedPoint: { width: 2, color: 0xffd8a3, alpha: 0.85, dash: [6, 6], markerSize: 10 },
+      perpendicular: { width: 2, color: 0xffffff, alpha: 0.8, dash: [6, 6], markerSize: 10 },
+      parallel: { width: 2, color: 0xffd2a1, alpha: 0.82, dash: [6, 6], markerSize: 10 },
+      equalLength: { width: 2, color: 0xffbe73, alpha: 0.9, dash: [6, 6], markerSize: 10 },
+    },
+  };
+}

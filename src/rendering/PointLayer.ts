@@ -43,7 +43,7 @@ export class PointLayer {
     if (!point.graphics || !point.text) return;
     const scale = ctx.scale;
     const isHovered = this.hoveredLabel === point.label;
-    const radius = ctx.styles.point.radius / scale;
+    const radius = ctx.styles.entities.point.radius / scale;
     const glowRadius = 12 / scale;
     const labelOffset = 12 / scale;
 
@@ -55,7 +55,9 @@ export class PointLayer {
       point.graphics.fill({ color: 0xffd27a, alpha: 0.35 });
     }
     point.graphics.circle(0, 0, radius);
-    point.graphics.fill({ color: isHovered ? ctx.styles.point.hoverColor : ctx.styles.point.color });
+    point.graphics.fill({
+      color: isHovered ? ctx.styles.entities.point.hoverColor : ctx.styles.entities.point.color,
+    });
 
     point.text.scale.set(1 / scale, -1 / scale);
     point.text.x = point.x + labelOffset;

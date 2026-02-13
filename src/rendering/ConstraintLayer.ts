@@ -11,14 +11,12 @@ type Vec2 = { x: number; y: number };
 export class ConstraintLayer {
   private graphicsById: Map<string, PIXI.Graphics> = new Map();
   private layer: PIXI.Container;
-  private style: RenderContext['styles']['constraint'] | null = null;
 
   constructor(layer: PIXI.Container) {
     this.layer = layer;
   }
 
   sync(constraints: Constraint[], ctx: RenderContext) {
-    this.style = ctx.styles.constraint;
     const seen = new Set<string>();
 
     for (const constraint of constraints) {
@@ -65,11 +63,12 @@ export class ConstraintLayer {
 
   private drawConstraint(constraint: Constraint, graphics: PIXI.Graphics, ctx: RenderContext) {
     graphics.clear();
+    const style = this.getStyleForConstraint(constraint, ctx);
     const scale = ctx.scale;
-    const strokeWidth = (this.style?.width ?? 2) / scale;
-    const color = this.style?.color ?? 0xffffff;
-    const alpha = this.style?.alpha ?? 0.8;
-    const markerSize = (this.style?.markerSize ?? 10) / scale;
+    const strokeWidth = (style.width ?? 2) / scale;
+    const color = style.color ?? 0xffffff;
+    const alpha = style.alpha ?? 0.8;
+    const markerSize = (style.markerSize ?? 10) / scale;
 
     graphics.setStrokeStyle({ width: strokeWidth, color, alpha });
 
@@ -110,7 +109,7 @@ export class ConstraintLayer {
       const dirB = this.normalize(this.sub(pointsB.end, pointsB.start));
       const dirPerp = this.normalize(this.sub(pointsA.start, projection));
 
-      const dashPattern = this.style?.dash ?? [6, 6];
+      const dashPattern = style.dash ?? [6, 6];
       const dash = (dashPattern[0] ?? 6) / scale;
       const gap = (dashPattern[1] ?? dashPattern[0] ?? 6) / scale;
 
@@ -148,6 +147,21 @@ export class ConstraintLayer {
       this.drawTickMark(graphics, midA, tickDirA, tickSize);
       this.drawTickMark(graphics, midB, tickDirB, tickSize);
       graphics.stroke();
+    }
+  }
+
+  private getStyleForConstraint(constraint: Constraint, ctx: RenderContext) {
+    switch (constraint.type) {
+      case 'fixedPoint':
+        return ctx.styles.constraints.fixedPoint;
+      case 'perpendicular':
+        return ctx.styles.constraints.perpendicular;
+      case 'parallel':
+        return ctx.styles.constraints.parallel;
+      case 'equalLength':
+        return ctx.styles.constraints.equalLength;
+      default:
+        return ctx.styles.constraints.perpendicular;
     }
   }
 

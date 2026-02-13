@@ -14,7 +14,7 @@ export class LineSegmentLayer {
   private lines: Map<string, LineSegmentRenderModel> = new Map();
   private layer: PIXI.Container;
   private camera: Camera;
-  private style: RenderContext['styles']['segment'] | null = null;
+  private style: RenderContext['styles']['entities']['segment'] | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
@@ -22,7 +22,7 @@ export class LineSegmentLayer {
   }
 
   sync(lines: LineSegmentEntity[], ctx: RenderContext) {
-    this.style = ctx.styles.segment;
+    this.style = ctx.styles.entities.segment;
     const seen = new Set<string>();
 
     for (const entity of lines) {
@@ -96,7 +96,7 @@ export class LineSegmentLayer {
   }
 
   updateAllVisuals(ctx: RenderContext) {
-    this.style = ctx.styles.segment;
+    this.style = ctx.styles.entities.segment;
     for (const line of this.lines.values()) {
       this.updateLineVisuals(line);
     }

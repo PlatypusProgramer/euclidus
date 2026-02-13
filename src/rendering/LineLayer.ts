@@ -16,7 +16,7 @@ export class LineLayer {
   private lines: Map<string, LineRenderModel> = new Map();
   private layer: PIXI.Container;
   private camera: Camera;
-  private style: RenderContext['styles']['line'] | null = null;
+  private style: RenderContext['styles']['entities']['line'] | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
@@ -24,7 +24,7 @@ export class LineLayer {
   }
 
   sync(lines: LineEntity[], ctx: RenderContext) {
-    this.style = ctx.styles.line;
+    this.style = ctx.styles.entities.line;
     const seen = new Set<string>();
 
     for (const entity of lines) {
@@ -193,7 +193,7 @@ export class LineLayer {
   }
 
   updateAllVisuals(ctx: RenderContext) {
-    this.style = ctx.styles.line;
+    this.style = ctx.styles.entities.line;
     for (const line of this.lines.values()) {
       this.updateLineVisuals(line);
     }
