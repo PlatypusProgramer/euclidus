@@ -21,6 +21,15 @@ export class AppState {
     return this.points.get(name);
   }
 
+  getPointById(id: string) {
+    for (const point of this.points.values()) {
+      if (point.id === id) {
+        return point;
+      }
+    }
+    return undefined;
+  }
+
   getAllPoints() {
     return Array.from(this.points.values());
   }
@@ -35,6 +44,15 @@ export class AppState {
 
   getLineSegment(name: string) {
     return this.lineSegments.get(name);
+  }
+
+  getLineSegmentById(id: string) {
+    for (const line of this.lineSegments.values()) {
+      if (line.id === id) {
+        return line;
+      }
+    }
+    return undefined;
   }
 
   getAllLineSegments() {
@@ -61,6 +79,15 @@ export class AppState {
 
   getLine(name: string) {
     return this.lines.get(name);
+  }
+
+  getLineById(id: string) {
+    for (const line of this.lines.values()) {
+      if (line.id === id) {
+        return line;
+      }
+    }
+    return undefined;
   }
 
   getAllLines() {
@@ -91,6 +118,25 @@ export class AppState {
 
   getConstraints() {
     return Array.from(this.constraints.values());
+  }
+
+  findEntityById(id: string): { type: 'point' | 'line' | 'lineSegment'; name: string } | null {
+    const point = this.getPointById(id);
+    if (point) {
+      return { type: 'point', name: point.name };
+    }
+
+    const line = this.getLineById(id);
+    if (line) {
+      return { type: 'line', name: line.name };
+    }
+
+    const lineSegment = this.getLineSegmentById(id);
+    if (lineSegment) {
+      return { type: 'lineSegment', name: lineSegment.name };
+    }
+
+    return null;
   }
 
   clear() {

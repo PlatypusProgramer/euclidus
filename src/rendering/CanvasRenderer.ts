@@ -9,6 +9,12 @@ import { LineLayer } from './LineLayer';
 import { ConstraintLayer } from './ConstraintLayer';
 import type { AppState } from '../application/state/AppState';
 import { createDefaultRenderStyles, type RenderContext, type RenderStyles } from './RenderContext';
+import {
+  SelectionEngine,
+  type SelectionApi,
+  type SelectionHit,
+  type SelectionMoveUpdate,
+} from './SelectionEngine';
 
 export class CanvasRenderer implements RendererPort {
   app!: PIXI.Application;
@@ -19,7 +25,10 @@ export class CanvasRenderer implements RendererPort {
   private lineSegmentLayer!: LineSegmentLayer;
   private lineLayer!: LineLayer;
   private constraintLayer!: ConstraintLayer;
-  private onPointDrag?: (name: string, x: number, y: number) => void;
+  private selectionEngine!: SelectionEngine;
+  private selectionApi!: SelectionApi;
+  private onSelectionMove?: (updates: SelectionMoveUpdate[]) => void;
+  private onSelectionDelete?: (selectedIds: string[]) => void;
   private lastState: AppState | null = null;
   private styles: RenderStyles = createDefaultRenderStyles();
 
@@ -64,26 +73,45 @@ export class CanvasRenderer implements RendererPort {
       updatePointVisuals: () => {
         this.updateAllVisuals();
       },
-      findPointAt: (worldX, worldY) => {
-        const point = this.pointLayer.getPointAt(worldX, worldY);
-        if (!point) return null;
-        return { name: point.label, x: point.x, y: point.y };
-      },
-      setHoveredPoint: (name) => {
-        this.pointLayer.setHoveredPoint(name);
-      },
-      movePoint: (name, worldX, worldY) => {
-        if (this.onPointDrag) {
-          this.onPointDrag(name, worldX, worldY);
-        } else {
-          this.pointLayer.movePoint(name, worldX, worldY);
-        }
-      },
     });
 
     this.viewport.setCanvasSize(this.app.canvas.width, this.app.canvas.height);
     this.viewport.refreshView({ updatePointVisuals: true });
     this.viewport.init();
+
+    this.selectionEngine = new SelectionEngine({
+      camera,
+      canvas: this.app.canvas as HTMLCanvasElement,
+      hitTest: (worldX, worldY) => this.hitTestEntity(worldX, worldY),
+      resolveMovablePointIds: (selectedIds) => this.resolvePointIdsForSelection(selectedIds),
+      getPointById: (id) => {
+        const point = this.pointLayer.getPointById(id);
+        if (!point) return null;
+        return { id: point.id, x: point.x, y: point.y };
+      },
+      movePoints: (updates) => {
+        if (this.onSelectionMove) {
+          this.onSelectionMove(updates);
+          return;
+        }
+        for (const update of updates) {
+          this.pointLayer.movePointById(update.id, update.x, update.y);
+        }
+      },
+      deleteSelection: (selectedIds) => {
+        if (this.onSelectionDelete) {
+          this.onSelectionDelete(selectedIds);
+        }
+      },
+      setHoveredPoint: (name) => {
+        this.pointLayer.setHoveredPoint(name);
+      },
+    });
+    this.selectionApi = this.selectionEngine.getApi();
+    this.selectionApi.onChange((ids) => {
+      this.applySelectionVisuals(ids);
+    });
+    this.selectionEngine.init();
 
     window.addEventListener('resize', () => this.resize());
   }
@@ -100,18 +128,47 @@ export class CanvasRenderer implements RendererPort {
   render(state: AppState) {
     this.lastState = state;
     const ctx = this.buildContext(state);
-    this.lineLayer.sync(state.getAllLines(), ctx);
-    this.lineSegmentLayer.sync(state.getAllLineSegments(), ctx);
+    const lines = state.getAllLines();
+    const segments = state.getAllLineSegments();
+    const points = state.getAllPoints();
+
+    this.lineLayer.sync(lines, ctx);
+    this.lineSegmentLayer.sync(segments, ctx);
     this.constraintLayer.sync(state.getConstraints(), ctx);
-    this.pointLayer.sync(state.getAllPoints(), ctx);
+    this.pointLayer.sync(points, ctx);
+
+    const availableIds: string[] = [];
+    for (const point of points) availableIds.push(point.id);
+    for (const segment of segments) availableIds.push(segment.id);
+    for (const line of lines) availableIds.push(line.id);
+    this.selectionEngine.syncAvailableEntityIds(availableIds);
+    this.applySelectionVisuals(this.selectionApi.getSelected());
   }
 
   setHoveredPoint(name: string | null) {
     this.pointLayer.setHoveredPoint(name);
   }
 
+  setSelectionMoveHandler(handler: (updates: SelectionMoveUpdate[]) => void) {
+    this.onSelectionMove = handler;
+  }
+
+  setSelectionDeleteHandler(handler: (selectedIds: string[]) => void) {
+    this.onSelectionDelete = handler;
+  }
+
   setPointDragHandler(handler: (name: string, x: number, y: number) => void) {
-    this.onPointDrag = handler;
+    this.onSelectionMove = (updates) => {
+      for (const update of updates) {
+        const point = this.pointLayer.getPointById(update.id);
+        if (!point) continue;
+        handler(point.label, update.x, update.y);
+      }
+    };
+  }
+
+  getSelectionApi() {
+    return this.selectionApi;
   }
 
   getAllPoints() {
@@ -140,5 +197,57 @@ export class CanvasRenderer implements RendererPort {
     this.lineSegmentLayer.updateAllVisuals(ctx);
     this.constraintLayer.updateAllVisuals(ctx);
     this.pointLayer.updateAllVisuals(ctx);
+  }
+
+  private hitTestEntity(worldX: number, worldY: number): SelectionHit | null {
+    const point = this.pointLayer.getPointAt(worldX, worldY);
+    if (point) {
+      return { id: point.id, type: 'point', pointName: point.label };
+    }
+
+    const segment = this.lineSegmentLayer.getLineSegmentAt(worldX, worldY);
+    if (segment) {
+      return { id: segment.id, type: 'lineSegment' };
+    }
+
+    const line = this.lineLayer.getLineAt(worldX, worldY);
+    if (line) {
+      return { id: line.id, type: 'line' };
+    }
+
+    return null;
+  }
+
+  private resolvePointIdsForSelection(selectedIds: string[]) {
+    const pointIds = new Set<string>();
+
+    for (const id of selectedIds) {
+      const point = this.pointLayer.getPointById(id);
+      if (point) {
+        pointIds.add(point.id);
+        continue;
+      }
+
+      const segment = this.lineSegmentLayer.getLineSegmentById(id);
+      if (segment) {
+        pointIds.add(segment.startId);
+        pointIds.add(segment.endId);
+        continue;
+      }
+
+      const line = this.lineLayer.getLineById(id);
+      if (line) {
+        pointIds.add(line.rootId);
+        pointIds.add(line.directionPointId);
+      }
+    }
+
+    return Array.from(pointIds);
+  }
+
+  private applySelectionVisuals(ids: string[]) {
+    this.pointLayer.setSelectedIds(ids);
+    this.lineLayer.setSelectedIds(ids);
+    this.lineSegmentLayer.setSelectedIds(ids);
   }
 }

@@ -5,6 +5,7 @@ import type { PointEntity } from '../domain/entities/PointEntity';
 import type { RenderContext } from './RenderContext';
 
 export interface Point {
+  id: string;
   label: string;
   x: number;
   y: number;
@@ -18,6 +19,7 @@ export class PointLayer {
   private layer: PIXI.Container;
   private camera: Camera;
   private hoveredLabel: string | null = null;
+  private selectedIds: Set<string> = new Set();
   private lastContext: RenderContext | null = null;
 
   constructor(layer: PIXI.Container, camera: Camera) {
@@ -43,12 +45,19 @@ export class PointLayer {
     if (!point.graphics || !point.text) return;
     const scale = ctx.scale;
     const isHovered = this.hoveredLabel === point.label;
+    const isSelected = this.selectedIds.has(point.id);
     const radius = ctx.styles.entities.point.radius / scale;
     const glowRadius = 12 / scale;
     const labelOffset = 12 / scale;
 
     point.graphics.clear();
-    if (isHovered) {
+    if (isSelected) {
+      point.graphics.circle(0, 0, glowRadius * 1.2);
+      point.graphics.fill({
+        color: ctx.styles.entities.point.selectedGlowColor,
+        alpha: ctx.styles.entities.point.selectedGlowAlpha,
+      });
+    } else if (isHovered) {
       point.graphics.circle(0, 0, glowRadius);
       point.graphics.fill({ color: 0xffd27a, alpha: 0.2 });
       point.graphics.circle(0, 0, glowRadius * 0.7);
@@ -56,7 +65,11 @@ export class PointLayer {
     }
     point.graphics.circle(0, 0, radius);
     point.graphics.fill({
-      color: isHovered ? ctx.styles.entities.point.hoverColor : ctx.styles.entities.point.color,
+      color: isSelected
+        ? ctx.styles.entities.point.selectedColor
+        : isHovered
+          ? ctx.styles.entities.point.hoverColor
+          : ctx.styles.entities.point.color,
     });
 
     point.text.scale.set(1 / scale, -1 / scale);
@@ -80,6 +93,18 @@ export class PointLayer {
     this.lastContext = ctx;
     for (const point of this.points.values()) {
       this.updatePointVisuals(point, ctx);
+    }
+  }
+
+  setSelectedIds(ids: string[]) {
+    const next = new Set(ids);
+    if (this.selectedIds.size === next.size && Array.from(this.selectedIds).every((id) => next.has(id))) {
+      return;
+    }
+    this.selectedIds = next;
+    if (!this.lastContext) return;
+    for (const point of this.points.values()) {
+      this.updatePointVisuals(point, this.lastContext);
     }
   }
 
@@ -117,6 +142,27 @@ export class PointLayer {
     return closest;
   }
 
+  getPointById(id: string) {
+    for (const point of this.points.values()) {
+      if (point.id === id) {
+        return point;
+      }
+    }
+    return null;
+  }
+
+  movePointById(id: string, x: number, y: number) {
+    const point = this.getPointById(id);
+    if (!point) return;
+    point.x = x;
+    point.y = y;
+    point.transform.setPosition(x, y);
+    if (this.lastContext) {
+      this.updatePointDisplay(point, this.lastContext.scale);
+      this.updatePointVisuals(point, this.lastContext);
+    }
+  }
+
   sync(points: PointEntity[], ctx: RenderContext) {
     this.lastContext = ctx;
     const seen = new Set<string>();
@@ -130,7 +176,7 @@ export class PointLayer {
       let point = this.points.get(label);
       if (!point) {
         const transform = new Transform(x, y);
-        point = { label, x, y, transform };
+        point = { id: entity.id, label, x, y, transform };
 
         const graphics = new PIXI.Graphics();
         graphics.position.x = x;
@@ -151,6 +197,7 @@ export class PointLayer {
 
         this.points.set(label, point);
       } else {
+        point.id = entity.id;
         point.x = x;
         point.y = y;
         point.transform.setPosition(x, y);
@@ -165,6 +212,7 @@ export class PointLayer {
         if (this.hoveredLabel === label) {
           this.hoveredLabel = null;
         }
+        this.selectedIds.delete(point.id);
         if (point.graphics) {
           this.layer.removeChild(point.graphics);
         }
@@ -186,6 +234,7 @@ export class PointLayer {
       }
     }
     this.points.clear();
+    this.selectedIds.clear();
   }
 
   getAllPoints() {

@@ -16,7 +16,7 @@
   if (container) {
     const clearButton = document.getElementById('clear-scene-btn') as HTMLButtonElement | null;
     // Expose a placeholder so the CLI can report status while we initialize.
-    (window as any).euclidus = { engine: undefined };
+    (window as any).euclidus = { engine: undefined, selection: undefined };
     const renderer = new CanvasRenderer(container);
     const initOnce = async () => {
       const warnTimer = window.setTimeout(() => {
@@ -29,10 +29,22 @@
       try {
         await renderer.init();
         const engine = new GeometryEngine(renderer);
-        renderer.setPointDragHandler((name, x, y) => engine.updatePoint(name, x, y));
+        renderer.setSelectionMoveHandler((updates) => {
+          engine.updatePointsById(updates);
+        });
+        renderer.setSelectionDeleteHandler((selectedIds) => {
+          const result = engine.deleteEntitiesById(selectedIds);
+          if (typeof (window as any).addLog === 'function') {
+            (window as any).addLog(
+              `Deleted ${result.points} points, ${result.lines} lines, ${result.lineSegments} segments, ${result.constraints} constraints`,
+              'info'
+            );
+          }
+        });
+        const selection = renderer.getSelectionApi();
 
         // Expose to window for CLI to access
-        (window as any).euclidus = { engine };
+        (window as any).euclidus = { engine, selection };
         if (clearButton) {
           clearButton.disabled = false;
           clearButton.addEventListener('click', () => {

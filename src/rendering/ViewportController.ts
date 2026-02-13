@@ -3,7 +3,6 @@ import type { Camera } from '../utils/Camera';
 import type { ViewportOverlay } from '../utils/ViewportOverlay';
 
 type RefreshOptions = { updatePointVisuals?: boolean };
-type PointHit = { name: string; x: number; y: number };
 
 export class ViewportController {
   private camera: Camera;
@@ -11,12 +10,8 @@ export class ViewportController {
   private worldLayer: PIXI.Container;
   private canvas: HTMLCanvasElement;
   private updatePointVisuals: () => void;
-  private findPointAt?: (worldX: number, worldY: number) => PointHit | null;
-  private movePoint?: (name: string, worldX: number, worldY: number) => void;
-  private setHoveredPoint?: (name: string | null) => void;
   private isPanning: boolean = false;
   private lastPanPointer: { x: number; y: number } | null = null;
-  private draggingPoint: { name: string; offsetX: number; offsetY: number } | null = null;
   private zoomTarget: number | null = null;
   private zoomPointer: { x: number; y: number } | null = null;
   private zoomAnimationFrame: number | null = null;
@@ -27,18 +22,12 @@ export class ViewportController {
     worldLayer: PIXI.Container;
     canvas: HTMLCanvasElement;
     updatePointVisuals: () => void;
-    findPointAt?: (worldX: number, worldY: number) => PointHit | null;
-    movePoint?: (name: string, worldX: number, worldY: number) => void;
-    setHoveredPoint?: (name: string | null) => void;
   }) {
     this.camera = options.camera;
     this.overlay = options.overlay;
     this.worldLayer = options.worldLayer;
     this.canvas = options.canvas;
     this.updatePointVisuals = options.updatePointVisuals;
-    this.findPointAt = options.findPointAt;
-    this.movePoint = options.movePoint;
-    this.setHoveredPoint = options.setHoveredPoint;
   }
 
   init() {
@@ -82,20 +71,6 @@ export class ViewportController {
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
     this.canvas.addEventListener('pointerdown', (e) => {
-      if (e.button === 0 && this.findPointAt && this.movePoint) {
-        const world = this.getWorldPosition(e);
-        const hit = this.findPointAt(world.x, world.y);
-        if (hit) {
-          this.draggingPoint = {
-            name: hit.name,
-            offsetX: hit.x - world.x,
-            offsetY: hit.y - world.y,
-          };
-          this.canvas.setPointerCapture(e.pointerId);
-          return;
-        }
-      }
-
       if (e.button !== 2) return;
       this.isPanning = true;
       this.lastPanPointer = { x: e.clientX, y: e.clientY };
@@ -103,15 +78,6 @@ export class ViewportController {
     });
 
     this.canvas.addEventListener('pointermove', (e) => {
-      if (this.draggingPoint && this.movePoint) {
-        const world = this.getWorldPosition(e);
-        this.movePoint(
-          this.draggingPoint.name,
-          world.x + this.draggingPoint.offsetX,
-          world.y + this.draggingPoint.offsetY
-        );
-        return;
-      }
       if (this.isPanning && this.lastPanPointer) {
         const dx = e.clientX - this.lastPanPointer.x;
         const dy = e.clientY - this.lastPanPointer.y;
@@ -122,24 +88,9 @@ export class ViewportController {
         this.refreshView();
         return;
       }
-      if (!this.findPointAt || !this.setHoveredPoint) {
-        return;
-      }
-      const world = this.getWorldPosition(e);
-      const hit = this.findPointAt(world.x, world.y);
-      this.setHoveredPoint(hit ? hit.name : null);
     });
 
     const endPan = (e: PointerEvent) => {
-      if (this.draggingPoint) {
-        this.draggingPoint = null;
-        try {
-          this.canvas.releasePointerCapture(e.pointerId);
-        } catch {
-          // Ignore if capture is already released.
-        }
-        return;
-      }
       if (!this.isPanning) return;
       this.isPanning = false;
       this.lastPanPointer = null;
@@ -153,12 +104,6 @@ export class ViewportController {
     this.canvas.addEventListener('pointerup', endPan);
     this.canvas.addEventListener('pointercancel', endPan);
     this.canvas.addEventListener('pointerleave', endPan);
-
-    this.canvas.addEventListener('pointerleave', () => {
-      if (this.setHoveredPoint) {
-        this.setHoveredPoint(null);
-      }
-    });
   }
 
   private installZoomHandlers() {

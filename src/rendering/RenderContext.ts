@@ -1,7 +1,14 @@
 import type { AppState } from '../application/state/AppState';
 import type { Camera } from '../utils/Camera';
 
-export type PointRenderStyle = { radius: number; color: number; hoverColor: number };
+export type PointRenderStyle = {
+  radius: number;
+  color: number;
+  hoverColor: number;
+  selectedColor: number;
+  selectedGlowColor: number;
+  selectedGlowAlpha: number;
+};
 export type LineRenderStyle = {
   width: number;
   color: number;
@@ -9,6 +16,9 @@ export type LineRenderStyle = {
   accentWidth: number;
   accentColor: number;
   accentAlpha: number;
+  selectedWidth: number;
+  selectedColor: number;
+  selectedAlpha: number;
 };
 export type SegmentRenderStyle = {
   width: number;
@@ -20,6 +30,11 @@ export type SegmentRenderStyle = {
   endpointRadius: number;
   endpointColor: number;
   endpointAlpha: number;
+  selectedWidth: number;
+  selectedColor: number;
+  selectedAlpha: number;
+  selectedEndpointColor: number;
+  selectedEndpointAlpha: number;
 };
 export type ConstraintRenderStyle = {
   width: number;
@@ -58,7 +73,14 @@ export type RenderContext = {
 export function createDefaultRenderStyles(): RenderStyles {
   return {
     entities: {
-      point: { radius: 6, color: 0xff8c00, hoverColor: 0xfff1c7 },
+      point: {
+        radius: 6,
+        color: 0xff8c00,
+        hoverColor: 0xfff1c7,
+        selectedColor: 0xfff3bc,
+        selectedGlowColor: 0xffd27a,
+        selectedGlowAlpha: 0.45,
+      },
       line: {
         width: 1.35,
         color: 0xff8f7a,
@@ -66,6 +88,9 @@ export function createDefaultRenderStyles(): RenderStyles {
         accentWidth: 2.9,
         accentColor: 0xff8c00,
         accentAlpha: 0.95,
+        selectedWidth: 3.6,
+        selectedColor: 0xfff0b4,
+        selectedAlpha: 0.98,
       },
       segment: {
         width: 4.4,
@@ -77,6 +102,11 @@ export function createDefaultRenderStyles(): RenderStyles {
         endpointRadius: 3.4,
         endpointColor: 0xffc776,
         endpointAlpha: 0.85,
+        selectedWidth: 4.8,
+        selectedColor: 0xfff0b4,
+        selectedAlpha: 0.98,
+        selectedEndpointColor: 0xfff6cc,
+        selectedEndpointAlpha: 1,
       },
     },
     constraints: {

@@ -4,7 +4,10 @@ import type { LineEntity } from '../domain/entities/LineEntity';
 import type { RenderContext } from './RenderContext';
 
 export interface LineRenderModel {
+  id: string;
   name: string;
+  rootId: string;
+  directionPointId: string;
   root: { x: number; y: number };
   direction: { x: number; y: number };
   graphics?: PIXI.Graphics;
@@ -17,6 +20,7 @@ export class LineLayer {
   private layer: PIXI.Container;
   private camera: Camera;
   private style: RenderContext['styles']['entities']['line'] | null = null;
+  private selectedIds: Set<string> = new Set();
 
   constructor(layer: PIXI.Container, camera: Camera) {
     this.layer = layer;
@@ -38,7 +42,10 @@ export class LineLayer {
       let line = this.lines.get(name);
       if (!line) {
         line = {
+          id: entity.id,
           name,
+          rootId: entity.root.id,
+          directionPointId: entity.directionPoint.id,
           root: { x: rootX, y: rootY },
           direction: { x: directionX, y: directionY },
         };
@@ -47,6 +54,9 @@ export class LineLayer {
         this.layer.addChild(graphics);
         this.lines.set(name, line);
       } else {
+        line.id = entity.id;
+        line.rootId = entity.root.id;
+        line.directionPointId = entity.directionPoint.id;
         line.root.x = rootX;
         line.root.y = rootY;
         line.direction.x = directionX;
@@ -68,6 +78,7 @@ export class LineLayer {
 
   updateLineVisuals(line: LineRenderModel) {
     if (!line.graphics) return;
+    const isSelected = this.selectedIds.has(line.id);
 
     const segment = this.getSegmentForBounds(line, this.camera.getVisibleBounds());
 
@@ -83,6 +94,9 @@ export class LineLayer {
     const accentWidth = (this.style?.accentWidth ?? 2.9) / scale;
     const accentColor = this.style?.accentColor ?? baseColor;
     const accentAlpha = this.style?.accentAlpha ?? 0.95;
+    const selectedWidth = (this.style?.selectedWidth ?? 3.6) / scale;
+    const selectedColor = this.style?.selectedColor ?? accentColor;
+    const selectedAlpha = this.style?.selectedAlpha ?? 0.98;
 
     // Draw thinner salmon extensions for the infinite portions of the line.
     line.graphics.setStrokeStyle({ width: baseWidth, color: baseColor, alpha: baseAlpha });
@@ -109,6 +123,15 @@ export class LineLayer {
       const start = this.pointAt(line, segmentStartT);
       const end = this.pointAt(line, segmentEndT);
       line.graphics.setStrokeStyle({ width: accentWidth, color: accentColor, alpha: accentAlpha });
+      line.graphics.moveTo(start.x, start.y);
+      line.graphics.lineTo(end.x, end.y);
+      line.graphics.stroke();
+    }
+
+    if (isSelected) {
+      const start = this.pointAt(line, segment.minT);
+      const end = this.pointAt(line, segment.maxT);
+      line.graphics.setStrokeStyle({ width: selectedWidth, color: selectedColor, alpha: selectedAlpha });
       line.graphics.moveTo(start.x, start.y);
       line.graphics.lineTo(end.x, end.y);
       line.graphics.stroke();
@@ -199,6 +222,49 @@ export class LineLayer {
     }
   }
 
+  setSelectedIds(ids: string[]) {
+    const next = new Set(ids);
+    if (this.selectedIds.size === next.size && Array.from(this.selectedIds).every((id) => next.has(id))) {
+      return;
+    }
+    this.selectedIds = next;
+    for (const line of this.lines.values()) {
+      this.updateLineVisuals(line);
+    }
+  }
+
+  getLineById(id: string) {
+    for (const line of this.lines.values()) {
+      if (line.id === id) {
+        return line;
+      }
+    }
+    return null;
+  }
+
+  getLineAt(worldX: number, worldY: number) {
+    const tolerance = 8 / this.camera.getScale();
+    let closest: LineRenderModel | null = null;
+    let closestDistance = Infinity;
+
+    for (const line of this.lines.values()) {
+      const dx = line.direction.x;
+      const dy = line.direction.y;
+      const magnitude = Math.hypot(dx, dy);
+      if (magnitude < 1e-9) continue;
+
+      const px = worldX - line.root.x;
+      const py = worldY - line.root.y;
+      const distance = Math.abs(px * dy - py * dx) / magnitude;
+      if (distance <= tolerance && distance < closestDistance) {
+        closest = line;
+        closestDistance = distance;
+      }
+    }
+
+    return closest;
+  }
+
   clear() {
     for (const line of this.lines.values()) {
       if (line.graphics) {
@@ -206,6 +272,7 @@ export class LineLayer {
       }
     }
     this.lines.clear();
+    this.selectedIds.clear();
   }
 
 }

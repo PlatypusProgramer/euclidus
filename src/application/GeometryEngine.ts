@@ -44,6 +44,27 @@ export class GeometryEngine {
     return point;
   }
 
+  updatePointsById(updates: { id: string; x: number; y: number }[]) {
+    if (updates.length === 0) {
+      return;
+    }
+
+    let changed = false;
+    for (const update of updates) {
+      const point = this.state.getPointById(update.id);
+      if (!point) continue;
+      point.setPosition(update.x, update.y);
+      changed = true;
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    this.solveConstraints();
+    this.refreshRenderer();
+  }
+
   removePoint(name: string) {
     const point = this.state.getPoint(name);
     if (!point) {
@@ -51,6 +72,175 @@ export class GeometryEngine {
     }
     this.state.removePoint(name);
     this.refreshRenderer();
+  }
+
+  deleteEntitiesById(ids: string[]) {
+    const pointsToDelete = new Set<string>();
+    const linesToDelete = new Set<string>();
+    const segmentsToDelete = new Set<string>();
+
+    for (const id of ids) {
+      const entity = this.state.findEntityById(id);
+      if (!entity) continue;
+      if (entity.type === 'point') {
+        pointsToDelete.add(entity.name);
+      }
+      if (entity.type === 'line') {
+        linesToDelete.add(entity.name);
+      }
+      if (entity.type === 'lineSegment') {
+        segmentsToDelete.add(entity.name);
+      }
+    }
+
+    for (const pointName of pointsToDelete) {
+      for (const line of this.state.getLinesForPoint(pointName)) {
+        linesToDelete.add(line.name);
+      }
+      for (const lineSegment of this.state.getLineSegmentsForPoint(pointName)) {
+        segmentsToDelete.add(lineSegment.name);
+      }
+    }
+
+    const constraintsToDelete = new Set<string>();
+
+    for (const [pointName, constraintId] of this.lockedPointConstraints.entries()) {
+      if (pointsToDelete.has(pointName)) {
+        constraintsToDelete.add(constraintId);
+      }
+    }
+
+    for (const [lineName, constraintId] of this.lineDirectionConstraints.entries()) {
+      if (linesToDelete.has(lineName)) {
+        constraintsToDelete.add(constraintId);
+      }
+    }
+
+    const referencesDeletedPoint = (pointName: string) => pointsToDelete.has(pointName);
+    const referencesDeletedLine = (lineName?: string) => Boolean(lineName && linesToDelete.has(lineName));
+    const referencesDeletedSegment = (segmentName?: string) => Boolean(segmentName && segmentsToDelete.has(segmentName));
+
+    for (const constraint of this.state.getConstraints()) {
+      if (constraint instanceof FixedPointConstraint) {
+        if (referencesDeletedPoint(constraint.pointName)) {
+          constraintsToDelete.add(constraint.id);
+        }
+        continue;
+      }
+
+      if (constraint instanceof LineDirectionMagnitudeConstraint) {
+        if (referencesDeletedPoint(constraint.startName) || referencesDeletedPoint(constraint.endName)) {
+          constraintsToDelete.add(constraint.id);
+          continue;
+        }
+        for (const [lineName, constraintId] of this.lineDirectionConstraints.entries()) {
+          if (constraintId === constraint.id && linesToDelete.has(lineName)) {
+            constraintsToDelete.add(constraint.id);
+            break;
+          }
+        }
+        continue;
+      }
+
+      if (constraint instanceof PerpendicularConstraint) {
+        const referencesDeletedEntity =
+          (constraint.sourceA.type === 'line' && referencesDeletedLine(constraint.sourceA.lineName)) ||
+          (constraint.sourceA.type === 'segment' && referencesDeletedSegment(constraint.sourceA.segmentName)) ||
+          (constraint.sourceB.type === 'line' && referencesDeletedLine(constraint.sourceB.lineName)) ||
+          (constraint.sourceB.type === 'segment' && referencesDeletedSegment(constraint.sourceB.segmentName));
+        const referencesDeletedPoints =
+          referencesDeletedPoint(constraint.sourceA.start) ||
+          referencesDeletedPoint(constraint.sourceA.end) ||
+          referencesDeletedPoint(constraint.sourceB.start) ||
+          referencesDeletedPoint(constraint.sourceB.end);
+        if (referencesDeletedEntity || referencesDeletedPoints) {
+          constraintsToDelete.add(constraint.id);
+        }
+        continue;
+      }
+
+      if (constraint instanceof ParallelConstraint) {
+        const referencesDeletedEntity =
+          (constraint.sourceA.type === 'line' && referencesDeletedLine(constraint.sourceA.lineName)) ||
+          (constraint.sourceA.type === 'segment' && referencesDeletedSegment(constraint.sourceA.segmentName)) ||
+          (constraint.sourceB.type === 'line' && referencesDeletedLine(constraint.sourceB.lineName)) ||
+          (constraint.sourceB.type === 'segment' && referencesDeletedSegment(constraint.sourceB.segmentName));
+        const referencesDeletedPoints =
+          referencesDeletedPoint(constraint.sourceA.start) ||
+          referencesDeletedPoint(constraint.sourceA.end) ||
+          referencesDeletedPoint(constraint.sourceB.start) ||
+          referencesDeletedPoint(constraint.sourceB.end);
+        if (referencesDeletedEntity || referencesDeletedPoints) {
+          constraintsToDelete.add(constraint.id);
+        }
+        continue;
+      }
+
+      if (constraint instanceof EqualLengthConstraint) {
+        const referencesDeletedEntity =
+          referencesDeletedSegment(constraint.sourceA.segmentName) ||
+          referencesDeletedSegment(constraint.sourceB.segmentName);
+        const referencesDeletedPoints =
+          referencesDeletedPoint(constraint.sourceA.start) ||
+          referencesDeletedPoint(constraint.sourceA.end) ||
+          referencesDeletedPoint(constraint.sourceB.start) ||
+          referencesDeletedPoint(constraint.sourceB.end);
+        if (referencesDeletedEntity || referencesDeletedPoints) {
+          constraintsToDelete.add(constraint.id);
+        }
+      }
+    }
+
+    const result = {
+      points: 0,
+      lines: 0,
+      lineSegments: 0,
+      constraints: 0,
+    };
+
+    for (const constraintId of constraintsToDelete) {
+      if (!this.state.getConstraint(constraintId)) continue;
+      this.state.removeConstraint(constraintId);
+      result.constraints += 1;
+    }
+
+    for (const lineName of linesToDelete) {
+      if (!this.state.getLine(lineName)) continue;
+      this.state.removeLine(lineName);
+      result.lines += 1;
+    }
+
+    for (const lineSegmentName of segmentsToDelete) {
+      if (!this.state.getLineSegment(lineSegmentName)) continue;
+      this.state.removeLineSegment(lineSegmentName);
+      result.lineSegments += 1;
+    }
+
+    for (const pointName of pointsToDelete) {
+      if (!this.state.getPoint(pointName)) continue;
+      this.state.removePoint(pointName);
+      result.points += 1;
+    }
+
+    for (const [pointName, constraintId] of Array.from(this.lockedPointConstraints.entries())) {
+      if (pointsToDelete.has(pointName) || !this.state.getPoint(pointName) || !this.state.getConstraint(constraintId)) {
+        this.lockedPointConstraints.delete(pointName);
+      }
+    }
+
+    for (const [lineName, constraintId] of Array.from(this.lineDirectionConstraints.entries())) {
+      if (linesToDelete.has(lineName) || !this.state.getLine(lineName) || !this.state.getConstraint(constraintId)) {
+        this.lineDirectionConstraints.delete(lineName);
+      }
+    }
+
+    const changed = result.points + result.lines + result.lineSegments + result.constraints > 0;
+    if (changed) {
+      this.solveConstraints();
+      this.refreshRenderer();
+    }
+
+    return result;
   }
 
   addLineSegment(name: string, startName: string, endName: string) {
