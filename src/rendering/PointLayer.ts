@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
 import { Transform } from '../utils/Transform';
+import { distanceSqVec2 } from '../utils/vec2';
 import type { PointEntity } from '../domain/entities/PointEntity';
 import type { RenderContext } from './RenderContext';
 
@@ -130,9 +131,7 @@ export class PointLayer {
     let closestDist = Infinity;
 
     for (const point of this.points.values()) {
-      const dx = worldX - point.x;
-      const dy = worldY - point.y;
-      const dist = dx * dx + dy * dy;
+      const dist = distanceSqVec2({ x: worldX, y: worldY }, { x: point.x, y: point.y });
       if (dist <= toleranceSq && dist < closestDist) {
         closest = point;
         closestDist = dist;

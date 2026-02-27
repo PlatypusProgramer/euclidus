@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
 import type { LineSegmentEntity } from '../domain/entities/LineSegmentEntity';
+import { distanceSqVec2, projectPointToSegmentWithParamVec2, type Vec2 } from '../utils/vec2';
 import type { RenderContext } from './RenderContext';
 
 export interface LineSegmentRenderModel {
@@ -8,8 +9,8 @@ export interface LineSegmentRenderModel {
   name: string;
   startId: string;
   endId: string;
-  start: { x: number; y: number };
-  end: { x: number; y: number };
+  start: Vec2;
+  end: Vec2;
   graphics?: PIXI.Graphics;
 }
 
@@ -174,23 +175,15 @@ export class LineSegmentLayer {
   private distanceSqToSegment(
     px: number,
     py: number,
-    start: { x: number; y: number },
-    end: { x: number; y: number }
+    start: Vec2,
+    end: Vec2
   ) {
-    const vx = end.x - start.x;
-    const vy = end.y - start.y;
-    const lenSq = vx * vx + vy * vy;
-    if (lenSq < 1e-9) {
-      const dx = px - start.x;
-      const dy = py - start.y;
-      return dx * dx + dy * dy;
+    const point = { x: px, y: py };
+    const projection = projectPointToSegmentWithParamVec2(point, start, end);
+    if (!projection) {
+      return distanceSqVec2(point, start);
     }
-    const t = Math.max(0, Math.min(1, ((px - start.x) * vx + (py - start.y) * vy) / lenSq));
-    const closestX = start.x + t * vx;
-    const closestY = start.y + t * vy;
-    const dx = px - closestX;
-    const dy = py - closestY;
-    return dx * dx + dy * dy;
+    return distanceSqVec2(point, projection.point);
   }
 
   clear() {

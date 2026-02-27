@@ -1,4 +1,5 @@
 import type { Camera } from '../utils/Camera';
+import { addVec2, distanceSqVec2, subVec2 } from '../utils/vec2';
 
 export type SelectionEntityType = 'point' | 'line' | 'lineSegment';
 
@@ -258,9 +259,11 @@ export class SelectionEngine {
     if (active.shiftKey) return false;
     if (!active.hit) return false;
 
-    const dx = e.clientX - active.screenStart.x;
-    const dy = e.clientY - active.screenStart.y;
-    return dx * dx + dy * dy >= this.dragThresholdPx * this.dragThresholdPx;
+    const distanceSq = distanceSqVec2(
+      { x: e.clientX, y: e.clientY },
+      { x: active.screenStart.x, y: active.screenStart.y }
+    );
+    return distanceSq >= this.dragThresholdPx * this.dragThresholdPx;
   }
 
   private startDrag(active: PointerSession) {
@@ -300,12 +303,12 @@ export class SelectionEngine {
       return;
     }
     const world = this.getWorldPosition(e);
-    const deltaX = world.x - active.worldStart.x;
-    const deltaY = world.y - active.worldStart.y;
+    const delta = subVec2(world, active.worldStart);
     const updates: SelectionMoveUpdate[] = [];
 
     for (const [id, start] of active.initialPointPositions.entries()) {
-      updates.push({ id, x: start.x + deltaX, y: start.y + deltaY });
+      const next = addVec2({ x: start.x, y: start.y }, delta);
+      updates.push({ id, x: next.x, y: next.y });
     }
 
     if (updates.length > 0) {

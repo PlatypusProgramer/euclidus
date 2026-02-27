@@ -1,6 +1,13 @@
 import * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
 import type { LineEntity } from '../domain/entities/LineEntity';
+import {
+  addVec2,
+  distancePointToLineVec2,
+  distanceSqVec2,
+  mulVec2,
+  type Vec2,
+} from '../utils/vec2';
 import type { RenderContext } from './RenderContext';
 
 export interface LineRenderModel {
@@ -8,8 +15,8 @@ export interface LineRenderModel {
   name: string;
   rootId: string;
   directionPointId: string;
-  root: { x: number; y: number };
-  direction: { x: number; y: number };
+  root: Vec2;
+  direction: Vec2;
   graphics?: PIXI.Graphics;
 }
 
@@ -138,11 +145,8 @@ export class LineLayer {
     }
   }
 
-  private pointAt(line: LineRenderModel, t: number) {
-    return {
-      x: line.root.x + line.direction.x * t,
-      y: line.root.y + line.direction.y * t,
-    };
+  private pointAt(line: LineRenderModel, t: number): Vec2 {
+    return addVec2(line.root, mulVec2(line.direction, t));
   }
 
   private getSegmentForBounds(line: LineRenderModel, bounds: Bounds) {
@@ -154,7 +158,7 @@ export class LineLayer {
       return null;
     }
 
-    const samples: { t: number; point: { x: number; y: number } }[] = [];
+    const samples: { t: number; point: Vec2 }[] = [];
     const within = (value: number, min: number, max: number) => value >= min - epsilon && value <= max + epsilon;
 
     if (Math.abs(dx) >= epsilon) {
@@ -199,14 +203,13 @@ export class LineLayer {
     return { start: min.point, end: max.point, minT: min.t, maxT: max.t };
   }
 
-  private dedupeSamples(samples: { t: number; point: { x: number; y: number } }[], epsilon: number) {
-    const unique: { t: number; point: { x: number; y: number } }[] = [];
+  private dedupeSamples(samples: { t: number; point: Vec2 }[], epsilon: number) {
+    const epsilonSq = epsilon * epsilon;
+    const unique: { t: number; point: Vec2 }[] = [];
     for (const sample of samples) {
       if (
         !unique.some(
-          (candidate) =>
-            Math.abs(candidate.point.x - sample.point.x) < epsilon &&
-            Math.abs(candidate.point.y - sample.point.y) < epsilon
+          (candidate) => distanceSqVec2(candidate.point, sample.point) < epsilonSq
         )
       ) {
         unique.push(sample);
@@ -248,14 +251,12 @@ export class LineLayer {
     let closestDistance = Infinity;
 
     for (const line of this.lines.values()) {
-      const dx = line.direction.x;
-      const dy = line.direction.y;
-      const magnitude = Math.hypot(dx, dy);
-      if (magnitude < 1e-9) continue;
-
-      const px = worldX - line.root.x;
-      const py = worldY - line.root.y;
-      const distance = Math.abs(px * dy - py * dx) / magnitude;
+      const distance = distancePointToLineVec2(
+        { x: worldX, y: worldY },
+        line.root,
+        line.direction
+      );
+      if (distance === null) continue;
       if (distance <= tolerance && distance < closestDistance) {
         closest = line;
         closestDistance = distance;

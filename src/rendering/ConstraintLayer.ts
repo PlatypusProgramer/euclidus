@@ -5,8 +5,16 @@ import type { ParallelConstraint, ParallelSource } from '../domain/constraints/P
 import type { PerpendicularConstraint, PerpendicularSource } from '../domain/constraints/PerpendicularConstraint';
 import type { EqualLengthConstraint, EqualLengthSource } from '../domain/constraints/EqualLengthConstraint';
 import type { RenderContext } from './RenderContext';
-
-type Vec2 = { x: number; y: number };
+import {
+  addVec2,
+  intersectLinesVec2,
+  lengthVec2,
+  mulVec2,
+  normalizeVec2,
+  projectPointToLineWithParamVec2,
+  subVec2,
+  type Vec2,
+} from '../utils/vec2';
 
 export class ConstraintLayer {
   private graphicsById: Map<string, PIXI.Graphics> = new Map();
@@ -87,10 +95,10 @@ export class ConstraintLayer {
       const pointsA = this.getSourcePoints(perpendicular.sourceA, ctx);
       const pointsB = this.getSourcePoints(perpendicular.sourceB, ctx);
       if (!pointsA || !pointsB) return;
-      const intersection = this.intersectLines(pointsA.start, pointsA.end, pointsB.start, pointsB.end);
+      const intersection = intersectLinesVec2(pointsA.start, pointsA.end, pointsB.start, pointsB.end);
       if (!intersection) return;
-      const dirA = this.normalize(this.sub(pointsA.end, pointsA.start));
-      const dirB = this.normalize(this.sub(pointsB.end, pointsB.start));
+      const dirA = normalizeVec2(subVec2(pointsA.end, pointsA.start));
+      const dirB = normalizeVec2(subVec2(pointsB.end, pointsB.start));
       if (!dirA || !dirB) return;
       this.drawPerpendicularMarker(graphics, intersection, dirA, dirB, markerSize);
       graphics.stroke();
@@ -103,11 +111,11 @@ export class ConstraintLayer {
       const pointsB = this.getSourcePoints(parallel.sourceB, ctx);
       if (!pointsA || !pointsB) return;
 
-      const projectionInfo = this.projectPointToLineWithParam(pointsA.start, pointsB.start, pointsB.end);
+      const projectionInfo = projectPointToLineWithParamVec2(pointsA.start, pointsB.start, pointsB.end);
       if (!projectionInfo) return;
       const { point: projection, t } = projectionInfo;
-      const dirB = this.normalize(this.sub(pointsB.end, pointsB.start));
-      const dirPerp = this.normalize(this.sub(pointsA.start, projection));
+      const dirB = normalizeVec2(subVec2(pointsB.end, pointsB.start));
+      const dirPerp = normalizeVec2(subVec2(pointsA.start, projection));
 
       const dashPattern = style.dash ?? [6, 6];
       const dash = (dashPattern[0] ?? 6) / scale;
@@ -120,7 +128,7 @@ export class ConstraintLayer {
       }
       if (dirB && dirPerp) {
         this.drawPerpendicularMarker(graphics, projection, dirB, dirPerp, markerSize);
-        this.drawPerpendicularMarker(graphics, pointsA.start, dirB, this.mul(dirPerp, -1), markerSize);
+        this.drawPerpendicularMarker(graphics, pointsA.start, dirB, mulVec2(dirPerp, -1), markerSize);
       } else {
         this.drawSquare(graphics, projection, markerSize);
       }
@@ -133,15 +141,15 @@ export class ConstraintLayer {
       const pointsB = this.getSourcePoints(equal.sourceB, ctx);
       if (!pointsA || !pointsB) return;
 
-      const midA = this.mul(this.add(pointsA.start, pointsA.end), 0.5);
-      const midB = this.mul(this.add(pointsB.start, pointsB.end), 0.5);
-      const dirA = this.normalize(this.sub(pointsA.end, pointsA.start));
-      const dirB = this.normalize(this.sub(pointsB.end, pointsB.start));
+      const midA = mulVec2(addVec2(pointsA.start, pointsA.end), 0.5);
+      const midB = mulVec2(addVec2(pointsB.start, pointsB.end), 0.5);
+      const dirA = normalizeVec2(subVec2(pointsA.end, pointsA.start));
+      const dirB = normalizeVec2(subVec2(pointsB.end, pointsB.start));
       if (!dirA || !dirB) return;
 
       const tickSize = markerSize * 0.8;
-      const tickDirA = this.normalize({ x: -dirA.y, y: dirA.x });
-      const tickDirB = this.normalize({ x: -dirB.y, y: dirB.x });
+      const tickDirA = normalizeVec2({ x: -dirA.y, y: dirA.x });
+      const tickDirB = normalizeVec2({ x: -dirB.y, y: dirB.x });
       if (!tickDirA || !tickDirB) return;
 
       this.drawTickMark(graphics, midA, tickDirA, tickSize);
@@ -175,35 +183,6 @@ export class ConstraintLayer {
     return { start: { x: start.x, y: start.y }, end: { x: end.x, y: end.y } };
   }
 
-  private intersectLines(a0: Vec2, a1: Vec2, b0: Vec2, b1: Vec2): Vec2 | null {
-    const r = this.sub(a1, a0);
-    const s = this.sub(b1, b0);
-    const denom = this.cross(r, s);
-    if (Math.abs(denom) < 1e-9) return null;
-    const t = this.cross(this.sub(b0, a0), s) / denom;
-    return this.add(a0, this.mul(r, t));
-  }
-
-  private projectPointToLine(point: Vec2, lineStart: Vec2, lineEnd: Vec2): Vec2 | null {
-    const d = this.sub(lineEnd, lineStart);
-    const denom = this.dot(d, d);
-    if (denom < 1e-9) return null;
-    const t = this.dot(this.sub(point, lineStart), d) / denom;
-    return this.add(lineStart, this.mul(d, t));
-  }
-
-  private projectPointToLineWithParam(
-    point: Vec2,
-    lineStart: Vec2,
-    lineEnd: Vec2
-  ): { point: Vec2; t: number } | null {
-    const d = this.sub(lineEnd, lineStart);
-    const denom = this.dot(d, d);
-    if (denom < 1e-9) return null;
-    const t = this.dot(this.sub(point, lineStart), d) / denom;
-    return { point: this.add(lineStart, this.mul(d, t)), t };
-  }
-
   private drawSquare(graphics: PIXI.Graphics, center: Vec2, size: number) {
     const half = size / 2;
     graphics.rect(center.x - half, center.y - half, size, size);
@@ -216,29 +195,30 @@ export class ConstraintLayer {
     dirB: Vec2,
     size: number
   ) {
-    const a = this.add(origin, this.mul(dirA, size));
-    const b = this.add(a, this.mul(dirB, size));
-    const c = this.add(origin, this.mul(dirB, size));
+    const a = addVec2(origin, mulVec2(dirA, size));
+    const b = addVec2(a, mulVec2(dirB, size));
+    const c = addVec2(origin, mulVec2(dirB, size));
     graphics.moveTo(a.x, a.y);
     graphics.lineTo(b.x, b.y);
     graphics.lineTo(c.x, c.y);
   }
 
   private drawDashedLine(graphics: PIXI.Graphics, start: Vec2, end: Vec2, dash: number, gap: number) {
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    const length = Math.hypot(dx, dy);
+    const delta = subVec2(end, start);
+    const length = lengthVec2(delta);
     if (length < 1e-9) return;
-    const ux = dx / length;
-    const uy = dy / length;
+    const dir = normalizeVec2(delta);
+    if (!dir) return;
 
     let distance = 0;
     while (distance < length) {
       const segment = Math.min(dash, length - distance);
-      const sx = start.x + ux * distance;
-      const sy = start.y + uy * distance;
-      const ex = start.x + ux * (distance + segment);
-      const ey = start.y + uy * (distance + segment);
+      const segmentStart = addVec2(start, mulVec2(dir, distance));
+      const segmentEnd = addVec2(start, mulVec2(dir, distance + segment));
+      const sx = segmentStart.x;
+      const sy = segmentStart.y;
+      const ex = segmentEnd.x;
+      const ey = segmentEnd.y;
       graphics.moveTo(sx, sy);
       graphics.lineTo(ex, ey);
       distance += dash + gap;
@@ -247,35 +227,9 @@ export class ConstraintLayer {
 
   private drawTickMark(graphics: PIXI.Graphics, center: Vec2, dir: Vec2, size: number) {
     const half = size / 2;
-    const a = this.add(center, this.mul(dir, -half));
-    const b = this.add(center, this.mul(dir, half));
+    const a = addVec2(center, mulVec2(dir, -half));
+    const b = addVec2(center, mulVec2(dir, half));
     graphics.moveTo(a.x, a.y);
     graphics.lineTo(b.x, b.y);
-  }
-
-  private add(a: Vec2, b: Vec2): Vec2 {
-    return { x: a.x + b.x, y: a.y + b.y };
-  }
-
-  private sub(a: Vec2, b: Vec2): Vec2 {
-    return { x: a.x - b.x, y: a.y - b.y };
-  }
-
-  private mul(v: Vec2, scalar: number): Vec2 {
-    return { x: v.x * scalar, y: v.y * scalar };
-  }
-
-  private normalize(v: Vec2): Vec2 | null {
-    const len = Math.hypot(v.x, v.y);
-    if (len < 1e-9) return null;
-    return { x: v.x / len, y: v.y / len };
-  }
-
-  private dot(a: Vec2, b: Vec2): number {
-    return a.x * b.x + a.y * b.y;
-  }
-
-  private cross(a: Vec2, b: Vec2): number {
-    return a.x * b.y - a.y * b.x;
   }
 }

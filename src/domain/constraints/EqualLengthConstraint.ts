@@ -2,6 +2,7 @@ import type { Constraint } from './Constraint';
 import type { ConstraintContext, VariableRef } from './types';
 import { pointVar } from './types';
 import { createGuid } from '../../utils/guid';
+import { lengthSqVec2, subVec2, type Vec2 } from '../../utils/vec2';
 
 export type EqualLengthSource = { start: string; end: string; segmentName?: string };
 
@@ -26,7 +27,7 @@ export class EqualLengthConstraint implements Constraint {
   evaluate(ctx: ConstraintContext): number[] {
     const d1 = this.getDirection(this.sourceA, ctx);
     const d2 = this.getDirection(this.sourceB, ctx);
-    return [d1.x * d1.x + d1.y * d1.y - (d2.x * d2.x + d2.y * d2.y)];
+    return [lengthSqVec2(d1) - lengthSqVec2(d2)];
   }
 
   jacobian(ctx: ConstraintContext): number[][] {
@@ -44,9 +45,9 @@ export class EqualLengthConstraint implements Constraint {
     ];
   }
 
-  private getDirection(source: EqualLengthSource, ctx: ConstraintContext): { x: number; y: number } {
+  private getDirection(source: EqualLengthSource, ctx: ConstraintContext): Vec2 {
     const start = ctx.getPoint(source.start);
     const end = ctx.getPoint(source.end);
-    return { x: end.x - start.x, y: end.y - start.y };
+    return subVec2({ x: end.x, y: end.y }, { x: start.x, y: start.y });
   }
 }

@@ -2,6 +2,7 @@ import type { Constraint } from './Constraint';
 import type { ConstraintContext, VariableRef } from './types';
 import { pointVar } from './types';
 import { createGuid } from '../../utils/guid';
+import { lengthSqVec2, subVec2 } from '../../utils/vec2';
 
 export class LineDirectionMagnitudeConstraint implements Constraint {
   id: string;
@@ -31,16 +32,14 @@ export class LineDirectionMagnitudeConstraint implements Constraint {
   evaluate(ctx: ConstraintContext): number[] {
     const start = ctx.getPoint(this.startName);
     const end = ctx.getPoint(this.endName);
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    return [dx * dx + dy * dy - this.targetLengthSq];
+    const delta = subVec2({ x: end.x, y: end.y }, { x: start.x, y: start.y });
+    return [lengthSqVec2(delta) - this.targetLengthSq];
   }
 
   jacobian(ctx: ConstraintContext): number[][] {
     const start = ctx.getPoint(this.startName);
     const end = ctx.getPoint(this.endName);
-    const dx = end.x - start.x;
-    const dy = end.y - start.y;
-    return [[-2 * dx, -2 * dy, 2 * dx, 2 * dy]];
+    const delta = subVec2({ x: end.x, y: end.y }, { x: start.x, y: start.y });
+    return [[-2 * delta.x, -2 * delta.y, 2 * delta.x, 2 * delta.y]];
   }
 }

@@ -2,6 +2,7 @@ import type { Constraint } from './Constraint';
 import type { ConstraintContext, VariableRef } from './types';
 import { pointVar } from './types';
 import { createGuid } from '../../utils/guid';
+import { crossVec2, subVec2, type Vec2 } from '../../utils/vec2';
 
 export type ParallelSource =
   | { type: 'line'; start: string; end: string; lineName?: string }
@@ -28,7 +29,7 @@ export class ParallelConstraint implements Constraint {
   evaluate(ctx: ConstraintContext): number[] {
     const d1 = this.getDirection(this.sourceA, ctx);
     const d2 = this.getDirection(this.sourceB, ctx);
-    return [d1.x * d2.y - d1.y * d2.x];
+    return [crossVec2(d1, d2)];
   }
 
   jacobian(ctx: ConstraintContext): number[][] {
@@ -51,10 +52,10 @@ export class ParallelConstraint implements Constraint {
     ];
   }
 
-  private getDirection(source: ParallelSource, ctx: ConstraintContext): { x: number; y: number } {
+  private getDirection(source: ParallelSource, ctx: ConstraintContext): Vec2 {
     const start = ctx.getPoint(source.start);
     const end = ctx.getPoint(source.end);
-    return { x: end.x - start.x, y: end.y - start.y };
+    return subVec2({ x: end.x, y: end.y }, { x: start.x, y: start.y });
   }
 
   private appendDerivatives(derivative: { x: number; y: number }, row: number[]) {
