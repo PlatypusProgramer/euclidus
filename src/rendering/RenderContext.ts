@@ -110,10 +110,34 @@ export function createDefaultRenderStyles(): RenderStyles {
       },
     },
     constraints: {
-      fixedPoint: { width: 2, color: 0xffd8a3, alpha: 0.85, dash: [6, 6], markerSize: 10 },
-      perpendicular: { width: 2, color: 0xffffff, alpha: 0.8, dash: [6, 6], markerSize: 10 },
-      parallel: { width: 2, color: 0xffd2a1, alpha: 0.82, dash: [6, 6], markerSize: 10 },
-      equalLength: { width: 2, color: 0xffbe73, alpha: 0.9, dash: [6, 6], markerSize: 10 },
+      fixedPoint: { 
+        width: 2, 
+        color: 0xffd8a3, 
+        alpha: 0.85, 
+        dash: [6, 6], 
+        markerSize: 10 
+      },
+      perpendicular: { 
+        width: 2, 
+        color: 0xffffff, 
+        alpha: 0.8, 
+        dash: [6, 6], 
+        markerSize: 10 }
+        ,
+      parallel: { 
+        width: 2, 
+        color: 0xffd2a1, 
+        alpha: 0.82, 
+        dash: [6, 6], 
+        markerSize: 10 
+      },
+      equalLength: { 
+        width: 2, 
+        color: 0xffbe73, 
+        alpha: 0.9, 
+        dash: [6, 6], 
+        markerSize: 10 
+      },
     },
   };
 }

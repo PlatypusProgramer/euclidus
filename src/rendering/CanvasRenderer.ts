@@ -3,7 +3,6 @@ import { Camera } from '../utils/Camera';
 import { ViewportOverlay } from '../utils/ViewportOverlay';
 import { PointLayer } from './PointLayer';
 import { ViewportController } from './ViewportController';
-import type { RendererPort } from '../application/ports/RendererPort';
 import { LineSegmentLayer } from './LineSegmentLayer';
 import { LineLayer } from './LineLayer';
 import { ConstraintLayer } from './ConstraintLayer';
@@ -16,7 +15,7 @@ import {
   type SelectionMoveUpdate,
 } from './SelectionEngine';
 
-export class CanvasRenderer implements RendererPort {
+export class CanvasRenderer {
   app!: PIXI.Application;
   private container: HTMLElement;
   private worldLayer!: PIXI.Container;

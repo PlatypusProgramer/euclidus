@@ -1,9 +1,9 @@
 import { AppState } from './state/AppState';
-import type { RendererPort } from './ports/RendererPort';
 import { PointEntity } from '../domain/entities/PointEntity';
 import { LineEntity } from '../domain/entities/LineEntity';
 import { LineSegmentEntity } from '../domain/entities/LineSegmentEntity';
 import { ConstraintSolver } from './solver/ConstraintSolver';
+import type { CanvasRenderer } from '../rendering/CanvasRenderer';
 import { FixedPointConstraint } from '../domain/constraints/FixedPointConstraint';
 import { LineDirectionMagnitudeConstraint } from '../domain/constraints/LineDirectionMagnitudeConstraint';
 import {
@@ -14,13 +14,13 @@ import { ParallelConstraint, type ParallelSource } from '../domain/constraints/P
 import { EqualLengthConstraint, type EqualLengthSource } from '../domain/constraints/EqualLengthConstraint';
 
 export class GeometryEngine {
-  private renderer: RendererPort;
+  private renderer: CanvasRenderer;
   private state: AppState;
   private solver: ConstraintSolver;
   private lockedPointConstraints: Map<string, string> = new Map();
   private lineDirectionConstraints: Map<string, string> = new Map();
 
-  constructor(renderer: RendererPort, state: AppState = new AppState()) {
+  constructor(renderer: CanvasRenderer, state: AppState = new AppState()) {
     this.renderer = renderer;
     this.state = state;
     this.solver = new ConstraintSolver();
