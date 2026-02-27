@@ -1,15 +1,14 @@
 import type * as PIXI from 'pixi.js';
 import type { Camera } from '../utils/Camera';
-import type { ViewportOverlay } from '../utils/ViewportOverlay';
 
 type RefreshOptions = { updatePointVisuals?: boolean };
 
 export class ViewportController {
   private camera: Camera;
-  private overlay: ViewportOverlay;
   private worldLayer: PIXI.Container;
   private canvas: HTMLCanvasElement;
   private updatePointVisuals: () => void;
+  private onViewChange?: () => void;
   private isPanning: boolean = false;
   private lastPanPointer: { x: number; y: number } | null = null;
   private zoomTarget: number | null = null;
@@ -18,16 +17,16 @@ export class ViewportController {
 
   constructor(options: {
     camera: Camera;
-    overlay: ViewportOverlay;
     worldLayer: PIXI.Container;
     canvas: HTMLCanvasElement;
     updatePointVisuals: () => void;
+    onViewChange?: () => void;
   }) {
     this.camera = options.camera;
-    this.overlay = options.overlay;
     this.worldLayer = options.worldLayer;
     this.canvas = options.canvas;
     this.updatePointVisuals = options.updatePointVisuals;
+    this.onViewChange = options.onViewChange;
   }
 
   init() {
@@ -41,7 +40,7 @@ export class ViewportController {
 
   refreshView(options: RefreshOptions = {}) {
     this.camera.applyTo(this.worldLayer);
-    this.overlay.draw(this.worldLayer, this.canvas);
+    this.onViewChange?.();
     if (options.updatePointVisuals) {
       this.updatePointVisuals();
     }

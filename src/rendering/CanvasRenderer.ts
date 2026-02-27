@@ -1,11 +1,11 @@
 import * as PIXI from 'pixi.js';
 import { Camera } from '../utils/Camera';
-import { ViewportOverlay } from '../utils/ViewportOverlay';
 import { PointLayer } from './PointLayer';
 import { ViewportController } from './ViewportController';
 import { LineSegmentLayer } from './LineSegmentLayer';
 import { LineLayer } from './LineLayer';
 import { ConstraintLayer } from './ConstraintLayer';
+import { GridLayer } from './GridLayer';
 import type { AppState } from '../application/state/AppState';
 import { createDefaultRenderStyles, type RenderContext, type RenderStyles } from './RenderContext';
 import {
@@ -20,6 +20,7 @@ export class CanvasRenderer {
   private container: HTMLElement;
   private worldLayer!: PIXI.Container;
   private viewport!: ViewportController;
+  private gridLayer!: GridLayer;
   private pointLayer!: PointLayer;
   private lineSegmentLayer!: LineSegmentLayer;
   private lineLayer!: LineLayer;
@@ -53,22 +54,25 @@ export class CanvasRenderer {
     this.app.stage.addChild(this.worldLayer);
 
     const camera = new Camera(25); // 25 pixels per unit
-    const overlay = new ViewportOverlay(camera);
+    const gridContainer = new PIXI.Container();
     const lineContainer = new PIXI.Container();
     const segmentContainer = new PIXI.Container();
     const constraintContainer = new PIXI.Container();
     const pointContainer = new PIXI.Container();
-    this.worldLayer.addChild(lineContainer, segmentContainer, constraintContainer, pointContainer);
+    this.worldLayer.addChild(gridContainer, lineContainer, segmentContainer, constraintContainer, pointContainer);
 
+    this.gridLayer = new GridLayer(gridContainer, camera);
     this.pointLayer = new PointLayer(pointContainer, camera);
     this.lineSegmentLayer = new LineSegmentLayer(segmentContainer, camera);
     this.lineLayer = new LineLayer(lineContainer, camera);
     this.constraintLayer = new ConstraintLayer(constraintContainer);
     this.viewport = new ViewportController({
       camera,
-      overlay,
       worldLayer: this.worldLayer,
       canvas: this.app.canvas as HTMLCanvasElement,
+      onViewChange: () => {
+        this.gridLayer.sync();
+      },
       updatePointVisuals: () => {
         this.updateAllVisuals();
       },
